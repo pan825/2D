@@ -19,8 +19,6 @@ def visual_cue(theta, index, stimulus = 0.03, sigma = 2 * np.pi/8):
     d3 = (theta-phi - 2*np.pi)**2
     return A * (np.exp(-d1/(2*sigma**2)) + np.exp(-d2/(2*sigma**2)) + np.exp(-d3/(2*sigma**2)))
 
-
-
 def simulator( 
         # parameters
         w_EE = 0.719, # EB <-> EB
@@ -40,9 +38,7 @@ def simulator(
         t_epg_open = 200, # stimulus
         t_epg_close = 500,    # no stimulus
         t_pen_open = 5000,   # shift
-        input_frequency = 1.0,  # frequency of input modulation in Hz
-        input_phase = 0.0,     # phase offset in radians
-        input_oscillation_amplitude = 0.1, # amplitude of the input oscillation
+
 ):
     """
     param:
@@ -97,42 +93,10 @@ def simulator(
     PEN.v = E_l
     R.v = E_l
 
-    EPG_groups = []
-    EPG_groups.append(EPG[0:3]) # EPG1
-    EPG_groups.append(EPG[3:6]) # EPG2
-    EPG_groups.append(EPG[6:9]) # EPG3
-    EPG_groups.append(EPG[9:12]) # EPG4
-    EPG_groups.append(EPG[12:15]) # EPG5
-    EPG_groups.append(EPG[15:18]) # EPG6
-    EPG_groups.append(EPG[18:21]) # EPG7
-    EPG_groups.append(EPG[21:24]) # EPG8
-    EPG_groups.append(EPG[24:27]) # EPG9
-    EPG_groups.append(EPG[27:30]) # EPG10
-    EPG_groups.append(EPG[30:33]) # EPG11
-    EPG_groups.append(EPG[33:36]) # EPG12
-    EPG_groups.append(EPG[36:39]) # EPG13
-    EPG_groups.append(EPG[39:42]) # EPG14
-    EPG_groups.append(EPG[42:45]) # EPG15
-    EPG_groups.append(EPG[45:48]) # EPG16
-
-
-    PEN_groups = []
-    PEN_groups.append(PEN[0:3]) # PEN1
-    PEN_groups.append(PEN[3:6]) # PEN2
-    PEN_groups.append(PEN[6:9]) # PEN3
-    PEN_groups.append(PEN[9:12]) # PEN4
-    PEN_groups.append(PEN[12:15]) # PEN5
-    PEN_groups.append(PEN[15:18]) # PEN6
-    PEN_groups.append(PEN[18:21]) # PEN7
-    PEN_groups.append(PEN[21:24]) # PEN8
-    PEN_groups.append(PEN[24:27]) # PEN9
-    PEN_groups.append(PEN[27:30]) # PEN10
-    PEN_groups.append(PEN[30:33]) # PEN11
-    PEN_groups.append(PEN[33:36]) # PEN12
-    PEN_groups.append(PEN[36:39]) # PEN13
-    PEN_groups.append(PEN[39:42]) # PEN14
-    PEN_groups.append(PEN[42:45]) # PEN15
-    PEN_groups.append(PEN[45:48]) # PEN16
+    # Use list comprehensions to generate the 16 (3-neuron) sub-groups automatically
+    EPG_groups = [EPG[i*3:(i+1)*3] for i in range(16)]
+    PEN_groups = [PEN[i*3:(i+1)*3] for i in range(16)]
+    R_groups   = [R]  # single R population
 
     EPG_syn = []
     PEN_syn = []
@@ -146,24 +110,19 @@ def simulator(
     PE1L_syn2 = []
 
     EP_syn = []
-
-    # create connections with symmetric connections ensured
     
     # EPG_EPG
     for k in range(0,16):
         # EPG to EPG
         EPG_syn.append(Synapses(EPG_groups[k], EPG_groups[k], Ach_eqs, on_pre='s_ach += w_EE', method='euler'))
         EPG_syn[k].connect(condition='i != j')
-        # EPG to EPG reciprocal is inherently handled by connecting within the same group with condition
     
     # PEN_PEN
     for k2 in range(0,16):
         # PEN to PEN
         PEN_syn.append(Synapses(PEN_groups[k2], PEN_groups[k2], Ach_eqs_PP, on_pre='s_ach += w_PP', method='euler'))
         PEN_syn[k2].connect(condition='i != j')
-        # PEN to PEN reciprocal is inherently handled by connecting within the same group with condition
     
-    # EPG_R and R_EPG for reciprocal connections
     # EPG to R
     S_EI = Synapses(EPG, R, model=Ach_eqs_EI, on_pre='s_ach += w_EI', method='euler')
     for a in range(0,48):
@@ -185,7 +144,6 @@ def simulator(
         # EPG to PEN
         EP_syn.append(Synapses(EPG_groups[k3], PEN_groups[k3], Ach_eqs_EP, on_pre='s_ach += w_EP', method='euler'))
         EP_syn[k3].connect(j='u for u in range(0,3)', skip_if_invalid=True)
-        # PEN to EPG reciprocal connections are handled below
     
     ###
     
@@ -195,14 +153,12 @@ def simulator(
         # PEN to EPG
         PE2R_syn.append(Synapses(PEN_groups[k4], EPG_groups[k4+1], Ach_eqs_PE2R, on_pre='s_ach += 2*w_PE', method='euler'))
         PE2R_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
-        # EPG to PEN reciprocal can be defined if needed
     
     for k4 in range(0,6):
         # PEN to EPG
         PE1R_syn.append(Synapses(PEN_groups[k4], EPG_groups[k4+2], Ach_eqs_PE1R, on_pre='s_ach += 1*w_PE', method='euler'))
         PE1R_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    # Additional reciprocal connection if necessary
     PE1R_syn.append(Synapses(PEN_groups[6], EPG_groups[0], Ach_eqs_PE1R, on_pre='s_ach += 1*w_PE', method='euler'))
     PE1R_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
@@ -217,7 +173,6 @@ def simulator(
         PE1R_syn2.append(Synapses(PEN_groups[k4+9], EPG_groups[k4+2], Ach_eqs_PE1R2, on_pre='s_ach += 1*w_PE', method='euler'))
         PE1R_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    # Additional reciprocal connection if necessary
     PE1R_syn2.append(Synapses(PEN_groups[15], EPG_groups[0], Ach_eqs_PE1R2, on_pre='s_ach += 1*w_PE', method='euler'))
     PE1R_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
@@ -230,7 +185,6 @@ def simulator(
     PE7_syn.append(Synapses(PEN_groups[7], EPG_groups[14], Ach_eqs_PE7, on_pre='s_ach += 1*w_PE', method='euler'))
     for k in range(0,4):
         PE7_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
-    # EPG to PEN reciprocal connections can be added similarly if required
     
     PE8_syn = []
     # PEN8 -> EPG connections
@@ -240,7 +194,6 @@ def simulator(
     PE8_syn.append(Synapses(PEN_groups[8], EPG_groups[14], Ach_eqs_PE8, on_pre='s_ach += 1*w_PE', method='euler'))
     for k in range(0,4):
         PE8_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
-    # EPG to PEN reciprocal connections can be added similarly if required
     
     # PEN0-6 -> EPG8-15
     for k4 in range(0,7):
@@ -253,7 +206,6 @@ def simulator(
         PE1L_syn.append(Synapses(PEN_groups[k4+1], EPG_groups[k4+8], Ach_eqs_PE1L, on_pre='s_ach += 1*w_PE', method='euler'))
         PE1L_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
         
-    # Additional reciprocal connection if necessary
     PE1L_syn.append(Synapses(PEN_groups[0], EPG_groups[15], Ach_eqs_PE1L, on_pre='s_ach += 1*w_PE', method='euler'))
     PE1L_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
@@ -268,29 +220,13 @@ def simulator(
         PE1L_syn2.append(Synapses(PEN_groups[k4+10], EPG_groups[k4+8], Ach_eqs_PE1L2, on_pre='s_ach += 1*w_PE', method='euler'))
         PE1L_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    # Additional reciprocal connection if necessary
     PE1L_syn2.append(Synapses(PEN_groups[9], EPG_groups[15], Ach_eqs_PE1L2, on_pre='s_ach += 1*w_PE', method='euler'))
     PE1L_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
 
-    # record model state
-
-    PRM0 = PopulationRateMonitor(EPG_groups[0])
-    PRM1 = PopulationRateMonitor(EPG_groups[1]) 
-    PRM2 = PopulationRateMonitor(EPG_groups[2]) 
-    PRM3 = PopulationRateMonitor(EPG_groups[3]) 
-    PRM4 = PopulationRateMonitor(EPG_groups[4]) 
-    PRM5 = PopulationRateMonitor(EPG_groups[5])
-    PRM6 = PopulationRateMonitor(EPG_groups[6]) 
-    PRM7 = PopulationRateMonitor(EPG_groups[7]) 
-    PRM8 = PopulationRateMonitor(EPG_groups[8])
-    PRM9 = PopulationRateMonitor(EPG_groups[9])
-    PRM10 = PopulationRateMonitor(EPG_groups[10])
-    PRM11 = PopulationRateMonitor(EPG_groups[11])
-    PRM12 = PopulationRateMonitor(EPG_groups[12])
-    PRM13 = PopulationRateMonitor(EPG_groups[13])
-    PRM14 = PopulationRateMonitor(EPG_groups[14])
-    PRM15 = PopulationRateMonitor(EPG_groups[15])
-
+    # record model state (monitors)
+    PRM_EPG = [PopulationRateMonitor(group) for group in EPG_groups]
+    PRM_PEN = [PopulationRateMonitor(group) for group in PEN_groups]
+    PRM_R   = PopulationRateMonitor(R_groups[0])
 
     SM = SpikeMonitor(EPG)
     
@@ -317,21 +253,12 @@ def simulator(
         EPG_groups[i].I = 0
     net.run(t_epg_close * ms)
 
-    # Define time-dependent shifter input for PEN neurons (sine-modulated)
-    pen_dt = 1*ms  # temporal resolution of the input waveform
-    pen_times = np.arange(int(t_pen_open)) * pen_dt              # 0 .. t_pen_open (ms)
-    pen_wave = shifter_strength * (1 + input_oscillation_amplitude * np.sin(2 * np.pi * input_frequency * pen_times/second + input_phase))
-    pen_input = TimedArray(pen_wave, dt=pen_dt)                   # TimedArray so that pen_input(t) is accessible inside Brian
-
-    # Apply the time-dependent input to the chosen half of PEN groups
     if half_PEN == 'right':
         for i in range(8):
-            PEN_groups[i].I = 'pen_input(t)'
+            PEN_groups[i].I = shifter_strength
     elif half_PEN == 'left':
         for i in range(8,16):
-            PEN_groups[i].I = 'pen_input(t)'
-    else:
-        raise ValueError("half_PEN must be 'right' or 'left'")
+            PEN_groups[i].I = shifter_strength
 
     net.run(t_pen_open * ms)
     
@@ -339,28 +266,19 @@ def simulator(
     end  = time.time()
     print(f'\r{time.strftime("%H:%M:%S")} : {(end - start)//60:.0f} min {(end - start)%60:.1f} sec -> eval end', flush=True)
     
-    firing_rate = [PRM0.smooth_rate(width=5*ms),
-                    PRM1.smooth_rate(width=5*ms),
-                    PRM2.smooth_rate(width=5*ms),
-                    PRM3.smooth_rate(width=5*ms),
-                    PRM4.smooth_rate(width=5*ms),
-                    PRM5.smooth_rate(width=5*ms),
-                    PRM6.smooth_rate(width=5*ms),
-                    PRM7.smooth_rate(width=5*ms),
-                    PRM8.smooth_rate(width=5*ms),
-                    PRM9.smooth_rate(width=5*ms),
-                    PRM10.smooth_rate(width=5*ms),
-                    PRM11.smooth_rate(width=5*ms),
-                    PRM12.smooth_rate(width=5*ms),
-                    PRM13.smooth_rate(width=5*ms),
-                    PRM14.smooth_rate(width=5*ms),
-                    PRM15.smooth_rate(width=5*ms),]
+    firing_rate = [prm.smooth_rate(width=5*ms) for prm in PRM_EPG]
     firing_rate_array = np.array(firing_rate)
-    eval_time = np.linspace(0, len(firing_rate[0])/10000, len(firing_rate[0]))
-    # Get PEN group currents
-    pen_I = StateMonitor(PEN, 'I', record=True)
     
-    return eval_time, firing_rate_array, pen_I
+    firing_rate_pen = [prm.smooth_rate(width=5*ms) for prm in PRM_PEN]
+    firing_rate_pen_array = np.array(firing_rate_pen)
+    
+    firing_rate_r = [PRM_R.smooth_rate(width=5*ms),]
+    firing_rate_r_array = np.array(firing_rate_r)
+    
+    
+    
+    eval_time = np.linspace(0, len(firing_rate[0])/10000, len(firing_rate[0]))
+    return eval_time, firing_rate_array, firing_rate_pen_array, firing_rate_r_array
 
 if __name__ == '__main__':
-    eval_time, firing_rate, pen_I = simulator()    
+    t, fr, fr_pen, fr_r = simulator()    

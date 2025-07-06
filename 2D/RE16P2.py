@@ -21,11 +21,10 @@ def visual_cue(theta, index, stimulus = 0.03, sigma = 2 * np.pi/8):
 def simulator( 
         # parameters
         Isynmax = 0.2,
-        Isynmaxv = 0.2,
+        Isynmax_1 = 0.2,
         IEImax = 1,
         w_EE = 0.719, # EB <-> EB
         w_EI = 0.143, # EPG -> R
-        w_EIv = 0.01, # EPGv -> R
         w_IE = 0.740, # R -> EPG
         w_II = 0.01, # R <-> R
         w_PP = 0.01, # PEN <-> PEN
@@ -34,21 +33,15 @@ def simulator(
         sigma = 0.0001, # noise level
         
         stimulus_strength = 0.05, 
-        stimulus_strength_v = 0.05,
+        stimulus_strength_1 = 0.05,
         stimulus_location = 0*np.pi, # from 0 to np.pi
-        stimulus_location_v = 0*np.pi,
+        stimulus_location_1 = 0*np.pi,
         shifter_strength = 0.015,
-        shifter_strength_v = 0.015,
         half_PEN = 'right',
-        half_PENv = 'right',
         
         t_epg_open = 200, # stimulus
         t_epg_close = 500,    # no stimulus
         t_pen_open = 5000,   # shift
-        s_GABAA_max = 2,
-        R_refractory = 1, # unit: ms
-        EPG_refractory = 2, # unit: ms
-        EPGv_refractory = 2, # unit: ms
 
 ):
     """
@@ -63,19 +56,18 @@ def simulator(
     sigma: the noise level default 0.001
     stimulus_strength: the strength of the visual input default 0.05
     stimulus_location: the location of the visual input (from 0 to np.pi) default 0*np.pi
-    stimulus_strength_v: the strength of the visual input default 0.05
-    stimulus_location_v: the location of the visual input (from 0 to np.pi) default 0*np.pi
+    stimulus_strength_1: the strength of the visual input default 0.05
+    stimulus_location_1: the location of the visual input (from 0 to np.pi) default 0*np.pi
     shifter_strength: the strength of the shifter neuron input default 0.015
     ang_vel: the angular velocity of the cue rotation
     activate_duration: give the visual cue
     bump_duration: close the visual cue input
     shift_duration: the duration of the body ratotion
     half_PEN: 'left' or 'right'
-    half_PENv: 'left' or 'right'
+    half_PEN_1: 'left' or 'right'
     t_epg_open: the duration of the visual cue input
     t_epg_close: the duration of the no visual cue input
     t_pen_open: the duration of the body ratotion
-    s_GABAA_max: the maximum value of the GABAA synapse
     R_refractory: the refractory period of the R neuron (unit: ms)
     
     """
@@ -98,31 +90,27 @@ def simulator(
     N_e         = 100     # number of excitatory inputs
     E_ach       = 0
     tau_ach     = 10*ms
-    E_achv      = 0        # vertical ACh reversal potential
-    tau_achv    = 10*ms    # vertical ACh synaptic time constant
+    E_ach_1      = 0        # vertical ACh reversal potential
+    tau_ach_1    = 10*ms    # vertical ACh synaptic time constant
     E_GABAA     = -0.07 # GABAA reversal potential
     tau_GABAA   = 5*ms # GABAA synaptic time constant
-    E_GABAAv    = -0.07    # vertical GABAA reversal potential  
-    tau_GABAAv  = 5*ms     # vertical GABAA synaptic time constant
+    E_GABAA_1    = -0.07    # vertical GABAA reversal potential  
+    tau_GABAA_1  = 5*ms     # vertical GABAA synaptic time constant
     
 
 
     # create neuron
-    EPG = NeuronGroup(48, model=eqs_EPG, threshold='v>Vth', reset='v=Vr', refractory=f'{EPG_refractory}*ms', method='euler' )
+    EPG = NeuronGroup(48, model=eqs_EPG, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler' )
     PEN = NeuronGroup(48,model=eqs_PEN, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler')
-    EPGv = NeuronGroup(48, model=eqs_EPGv, threshold='v>Vth', reset='v=Vr', refractory=f'{EPGv_refractory}*ms', method='euler' )
-    PENv = NeuronGroup(48,model=eqs_PENv, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler')
-    R = NeuronGroup(3,model=eqs_R, threshold='v>Vth', reset='v=Vr', refractory=f'{R_refractory}*ms', method='euler')
+    EPG_1 = NeuronGroup(48, model=eqs_EPG_1, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler' )
+    # PEN_1 = NeuronGroup(48,model=eqs_PEN_1, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler') # delete
+    R = NeuronGroup(3,model=eqs_R, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler')
 
     # initialize neuron1
     EPG.v = E_l
-    EPG.Isyn_cap = Isynmax
     PEN.v = E_l
-    EPGv.v = E_l
-    PENv.v = E_l
+    EPG_1.v = E_l
     R.v = E_l
-    EPGv.Isyn_cap_v = Isynmaxv
-    R.IsynEImax = IEImax
 
     EPG_groups = []
     EPG_groups.append(EPG[0:3]) # EPG1
@@ -142,23 +130,23 @@ def simulator(
     EPG_groups.append(EPG[42:45]) # EPG15
     EPG_groups.append(EPG[45:48]) # EPG16
 
-    EPGv_groups = []
-    EPGv_groups.append(EPGv[0:3]) # EPG1
-    EPGv_groups.append(EPGv[3:6]) # EPG2
-    EPGv_groups.append(EPGv[6:9]) # EPG3
-    EPGv_groups.append(EPGv[9:12]) # EPG4
-    EPGv_groups.append(EPGv[12:15]) # EPG5
-    EPGv_groups.append(EPGv[15:18]) # EPG6 
-    EPGv_groups.append(EPGv[18:21]) # EPG7
-    EPGv_groups.append(EPGv[21:24]) # EPG8
-    EPGv_groups.append(EPGv[24:27]) # EPG9
-    EPGv_groups.append(EPGv[27:30]) # EPG10
-    EPGv_groups.append(EPGv[30:33]) # EPG11
-    EPGv_groups.append(EPGv[33:36]) # EPG12
-    EPGv_groups.append(EPGv[36:39]) # EPG13
-    EPGv_groups.append(EPGv[39:42]) # EPG14
-    EPGv_groups.append(EPGv[42:45]) # EPG15
-    EPGv_groups.append(EPGv[45:48]) # EPG16
+    EPG_1_groups = []
+    EPG_1_groups.append(EPG_1[0:3]) # EPG1
+    EPG_1_groups.append(EPG_1[3:6]) # EPG2
+    EPG_1_groups.append(EPG_1[6:9]) # EPG3
+    EPG_1_groups.append(EPG_1[9:12]) # EPG4
+    EPG_1_groups.append(EPG_1[12:15]) # EPG5
+    EPG_1_groups.append(EPG_1[15:18]) # EPG6 
+    EPG_1_groups.append(EPG_1[18:21]) # EPG7
+    EPG_1_groups.append(EPG_1[21:24]) # EPG8
+    EPG_1_groups.append(EPG_1[24:27]) # EPG9
+    EPG_1_groups.append(EPG_1[27:30]) # EPG10
+    EPG_1_groups.append(EPG_1[30:33]) # EPG11
+    EPG_1_groups.append(EPG_1[33:36]) # EPG12
+    EPG_1_groups.append(EPG_1[36:39]) # EPG13
+    EPG_1_groups.append(EPG_1[39:42]) # EPG14
+    EPG_1_groups.append(EPG_1[42:45]) # EPG15
+    EPG_1_groups.append(EPG_1[45:48]) # EPG16
 
     PEN_groups = []
     PEN_groups.append(PEN[0:3]) # PEN1
@@ -178,24 +166,24 @@ def simulator(
     PEN_groups.append(PEN[42:45]) # PEN15
     PEN_groups.append(PEN[45:48]) # PEN16
 
-    PENv_groups = []
+    # PEN_1_groups = []
 
-    PENv_groups.append(PENv[0:3]) # PEN1
-    PENv_groups.append(PENv[3:6]) # PEN2
-    PENv_groups.append(PENv[6:9]) # PEN3
-    PENv_groups.append(PENv[9:12]) # PEN4
-    PENv_groups.append(PENv[12:15]) # PEN5
-    PENv_groups.append(PENv[15:18]) # PEN6
-    PENv_groups.append(PENv[18:21]) # PEN7
-    PENv_groups.append(PENv[21:24]) # PEN8
-    PENv_groups.append(PENv[24:27]) # PEN9
-    PENv_groups.append(PENv[27:30]) # PEN10
-    PENv_groups.append(PENv[30:33]) # PEN11
-    PENv_groups.append(PENv[33:36]) # PEN12
-    PENv_groups.append(PENv[36:39]) # PEN13
-    PENv_groups.append(PENv[39:42]) # PEN14
-    PENv_groups.append(PENv[42:45]) # PEN15
-    PENv_groups.append(PENv[45:48]) # PEN16
+    # PEN_1_groups.append(PEN_1[0:3]) # PEN1
+    # PEN_1_groups.append(PEN_1[3:6]) # PEN2
+    # PEN_1_groups.append(PEN_1[6:9]) # PEN3
+    # PEN_1_groups.append(PEN_1[9:12]) # PEN4
+    # PEN_1_groups.append(PEN_1[12:15]) # PEN5
+    # PEN_1_groups.append(PEN_1[15:18]) # PEN6
+    # PEN_1_groups.append(PEN_1[18:21]) # PEN7
+    # PEN_1_groups.append(PEN_1[21:24]) # PEN8
+    # PEN_1_groups.append(PEN_1[24:27]) # PEN9
+    # PEN_1_groups.append(PEN_1[27:30]) # PEN10
+    # PEN_1_groups.append(PEN_1[30:33]) # PEN11
+    # PEN_1_groups.append(PEN_1[33:36]) # PEN12
+    # PEN_1_groups.append(PEN_1[36:39]) # PEN13
+    # PEN_1_groups.append(PEN_1[39:42]) # PEN14
+    # PEN_1_groups.append(PEN_1[42:45]) # PEN15
+    # PEN_1_groups.append(PEN_1[45:48]) # PEN16
 
     EPG_syn = []
     PEN_syn = []
@@ -209,20 +197,20 @@ def simulator(
     PE1L_syn2 = []
 
     EP_syn = []
-    EPv_syn = []
+    EP_1_syn = []
 
-    EPGv_syn = []
-    PENv_syn = []
-    PE2Rv_syn = []
-    PE2Lv_syn = []
-    PE1Rv_syn = []
-    PE1Lv_syn = []
-    PE2Rv_syn2 = []
-    PE2Lv_syn2 = []
-    PE1Rv_syn2 = []
-    PE1Lv_syn2 = []
-    PE7v_syn = []
-    PE8v_syn = []
+    EPG_1_syn = []
+    PEN_1_syn = []
+    PE2R_1_syn = []
+    PE2L_1_syn = []
+    PE1R_1_syn = []
+    PE1L_1_syn = []
+    PE2R_1_syn2 = []
+    PE2L_1_syn2 = []
+    PE1R_1_syn2 = []
+    PE1L_1_syn2 = []
+    PE7_1_syn = []
+    PE8_1_syn = []
 
     
     # EPG_EPG
@@ -250,12 +238,7 @@ def simulator(
     # R to EPG
     
     print("Creating R-EPG connections...")
-    # s_GABAA = clip(s_GABAA, 0, g_GABAA_max)
-    S_IE = Synapses(R, EPG, 
-                    model=GABA_eqs, 
-                    on_pre='''s_GABAA += w_IE
-                            s_GABAA = clip(s_GABAA, 0, s_GABAA_max)''',
-                    method='euler')
+    S_IE = Synapses(R, EPG, model=GABA_eqs, on_pre='s_GABAA += w_IE', method='euler')
     for a2 in range(0,48):
         for b2 in range(0,3):
             S_IE.connect(i=b2, j=a2)
@@ -359,121 +342,117 @@ def simulator(
     # EPG_EPG
     for k in range(0,16):
         # EPG to EPG
-        EPGv_syn.append(Synapses(EPGv_groups[k], EPGv_groups[k], Ach_eqs_v, on_pre='s_achv += w_EE', method='euler'))
-        EPGv_syn[k].connect(condition='i != j')
+        EPG_1_syn.append(Synapses(EPG_1_groups[k], EPG_1_groups[k], Ach_eqs_1, on_pre='s_ach += w_EE', method='euler'))
+        EPG_1_syn[k].connect(condition='i != j')
     
-    # PEN_PEN
-    for k2 in range(0,16):
-        # PEN to PEN
-        PENv_syn.append(Synapses(PENv_groups[k2], PENv_groups[k2], Ach_eqs_PPv, on_pre='s_achv += w_PP', method='euler'))
-        PENv_syn[k2].connect(condition='i != j')
+    # # PEN_PEN
+    # for k2 in range(0,16):
+    #     # PEN to PEN
+    #     PEN_1_syn.append(Synapses(PEN_1_groups[k2], PEN_1_groups[k2], Ach_eqs_PP_1, on_pre='s_ach += w_PP', method='euler'))
+    #     PEN_1_syn[k2].connect(condition='i != j')
     
     # EPG to R
-    S_EIv = Synapses(EPGv, R, model=Ach_eqs_EIv, on_pre='s_achv += w_EIv', method='euler')
+    S_EI_1 = Synapses(EPG_1, R, model=Ach_eqs_EI_1, on_pre='s_ach += w_EI', method='euler')
     for a in range(0,48):
         for b in range(0,3):
-            S_EIv.connect(i=a, j=b)
+            S_EI_1.connect(i=a, j=b)
     
 
     # R to EPG
     # on_pre='''s_GABAA += w_IE
     #     s_GABAA = clip(s_GABAA, 0, g_GABAA_max)'''
-    S_IEv = Synapses(R, EPGv, 
-                    model=GABAv_eqs, 
-                    on_pre='''s_GABAA += w_IE
-                            s_GABAA = clip(s_GABAA, 0, s_GABAA_max)''',
-                    method='euler')
+    S_IE_1 = Synapses(R, EPG_1, model=GABA_eqs_1, on_pre='s_GABAA += w_IE', method='euler')
     for a2 in range(0,48):
         for b2 in range(0,3):
-            S_IEv.connect(i=b2, j=a2)
+            S_IE_1.connect(i=b2, j=a2)
     
     # # R_R with symmetric connections
-    # S_IIv = Synapses(R, R, model=GABA_eqs_i, on_pre='s_GABAA += w_II', method='euler')
-    # S_IIv.connect(condition='i != j')
+    # S_II_1 = Synapses(R, R, model=GABA_eqs_i, on_pre='s_GABAA += w_II', method='euler')
+    # S_II_1.connect(condition='i != j')
     
     # EPG_PEN synapse
     for k3 in range(0,16):
         # EPG to PEN
-        EPv_syn.append(Synapses(EPGv_groups[k3], PENv_groups[k3], Ach_eqs_EPv, on_pre='s_achv += w_EP', method='euler'))
-        EPv_syn[k3].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        EP_1_syn.append(Synapses(EPG_1_groups[k3], PEN_groups[k3], Ach_eqs_EP_1, on_pre='s_ach += w_EP', method='euler'))
+        EP_1_syn[k3].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     ###
     
-    # PEN_EPG synapse #v
+    # PEN -> EPG_1 synapse 
     # PEN0-6 -> EPG0-8
     for k4 in range(0,7):
         # PEN to EPG
-        PE2Rv_syn.append(Synapses(PENv_groups[k4], EPGv_groups[k4+1], Ach_eqs_PE2Rv, on_pre='s_achv += 2*w_PE', method='euler'))
-        PE2Rv_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE2R_1_syn.append(Synapses(PEN_groups[k4], EPG_1_groups[k4+1], Ach_eqs_PE2R_1, on_pre='s_ach += 2*w_PE', method='euler'))
+        PE2R_1_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     for k4 in range(0,6):
         # PEN to EPG
-        PE1Rv_syn.append(Synapses(PENv_groups[k4], EPGv_groups[k4+2], Ach_eqs_PE1Rv, on_pre='s_achv += 1*w_PE', method='euler'))
-        PE1Rv_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE1R_1_syn.append(Synapses(PEN_groups[k4], EPG_1_groups[k4+2], Ach_eqs_PE1R_1, on_pre='s_ach += 1*w_PE', method='euler'))
+        PE1R_1_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    PE1Rv_syn.append(Synapses(PENv_groups[6], EPGv_groups[0], Ach_eqs_PE1Rv, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE1Rv_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+    PE1R_1_syn.append(Synapses(PEN_groups[6], EPG_1_groups[0], Ach_eqs_PE1R_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE1R_1_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     # PEN9-15 -> EPG0-8 
     for k4 in range(0,7):
         # PEN to EPG
-        PE2Rv_syn2.append(Synapses(PENv_groups[k4+9], EPGv_groups[k4+1], Ach_eqs_PE2R2v, on_pre='s_achv += 2*w_PE', method='euler'))
-        PE2Rv_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE2R_1_syn2.append(Synapses(PEN_groups[k4+9], EPG_1_groups[k4+1], Ach_eqs_PE2R2_1, on_pre='s_ach += 2*w_PE', method='euler'))
+        PE2R_1_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     for k4 in range(0,6):
         # PEN to EPG
-        PE1Rv_syn2.append(Synapses(PENv_groups[k4+9], EPGv_groups[k4+2], Ach_eqs_PE1R2v, on_pre='s_achv += 1*w_PE', method='euler'))
-        PE1Rv_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE1R_1_syn2.append(Synapses(PEN_groups[k4+9], EPG_1_groups[k4+2], Ach_eqs_PE1R2_1, on_pre='s_ach += 1*w_PE', method='euler'))
+        PE1R_1_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    PE1Rv_syn2.append(Synapses(PENv_groups[15], EPGv_groups[0], Ach_eqs_PE1R2v, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE1Rv_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+    PE1R_1_syn2.append(Synapses(PEN_groups[15], EPG_1_groups[0], Ach_eqs_PE1R2_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE1R_1_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     # PEN7-8
-    PE7v_syn = []
+    PE7_1_syn = []
     # PEN7 -> EPG connections
-    PE7v_syn.append(Synapses(PENv_groups[7], EPGv_groups[0], Ach_eqs_PE7v, on_pre='s_achv += 2*w_PE', method='euler'))
-    PE7v_syn.append(Synapses(PENv_groups[7], EPGv_groups[1], Ach_eqs_PE7v, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE7v_syn.append(Synapses(PENv_groups[7], EPGv_groups[15], Ach_eqs_PE7v, on_pre='s_achv += 2*w_PE', method='euler'))
-    PE7v_syn.append(Synapses(PENv_groups[7], EPGv_groups[14], Ach_eqs_PE7v, on_pre='s_achv += 1*w_PE', method='euler'))
+    PE7_1_syn.append(Synapses(PEN_groups[7], EPG_1_groups[0], Ach_eqs_PE7_1, on_pre='s_ach += 2*w_PE', method='euler'))
+    PE7_1_syn.append(Synapses(PEN_groups[7], EPG_1_groups[1], Ach_eqs_PE7_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE7_1_syn.append(Synapses(PEN_groups[7], EPG_1_groups[15], Ach_eqs_PE7_1, on_pre='s_ach += 2*w_PE', method='euler'))
+    PE7_1_syn.append(Synapses(PEN_groups[7], EPG_1_groups[14], Ach_eqs_PE7_1, on_pre='s_ach += 1*w_PE', method='euler'))
     for k in range(0,4):
-        PE7v_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE7_1_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     PE8v_syn = []
     # PEN8 -> EPG connections
-    PE8v_syn.append(Synapses(PENv_groups[8], EPGv_groups[0], Ach_eqs_PE8v, on_pre='s_achv += 2*w_PE', method='euler'))
-    PE8v_syn.append(Synapses(PENv_groups[8], EPGv_groups[1], Ach_eqs_PE8v, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE8v_syn.append(Synapses(PENv_groups[8], EPGv_groups[15], Ach_eqs_PE8v, on_pre='s_achv += 2*w_PE', method='euler'))
-    PE8v_syn.append(Synapses(PENv_groups[8], EPGv_groups[14], Ach_eqs_PE8v, on_pre='s_achv += 1*w_PE', method='euler'))
+    PE8_1_syn.append(Synapses(PEN_groups[8], EPG_1_groups[0], Ach_eqs_PE8_1, on_pre='s_ach += 2*w_PE', method='euler'))
+    PE8_1_syn.append(Synapses(PEN_groups[8], EPG_1_groups[1], Ach_eqs_PE8_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE8_1_syn.append(Synapses(PEN_groups[8], EPG_1_groups[15], Ach_eqs_PE8_1, on_pre='s_ach += 2*w_PE', method='euler'))
+    PE8_1_syn.append(Synapses(PEN_groups[8], EPG_1_groups[14], Ach_eqs_PE8_1, on_pre='s_ach += 1*w_PE', method='euler'))
     for k in range(0,4):
-        PE8v_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE8_1_syn[k].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     # PEN0-6 -> EPG8-15
     for k4 in range(0,7):
         # PEN to EPG
-        PE2Lv_syn.append(Synapses(PENv_groups[k4], EPGv_groups[k4+8], Ach_eqs_PE2Lv, on_pre='s_achv += 2*w_PE', method='euler'))
-        PE2Lv_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE2L_1_syn.append(Synapses(PEN_groups[k4], EPG_1_groups[k4+8], Ach_eqs_PE2L_1, on_pre='s_ach += 2*w_PE', method='euler'))
+        PE2L_1_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     for k4 in range(0,6):
         # PEN to EPG
-        PE1Lv_syn.append(Synapses(PENv_groups[k4+1], EPGv_groups[k4+8], Ach_eqs_PE1Lv, on_pre='s_achv += 1*w_PE', method='euler'))
-        PE1Lv_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE1L_1_syn.append(Synapses(PEN_groups[k4+1], EPG_1_groups[k4+8], Ach_eqs_PE1L_1, on_pre='s_ach += 1*w_PE', method='euler'))
+        PE1L_1_syn[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
         
-    PE1Lv_syn.append(Synapses(PENv_groups[0], EPGv_groups[15], Ach_eqs_PE1Lv, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE1Lv_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+    PE1L_1_syn.append(Synapses(PEN_groups[0], EPG_1_groups[15], Ach_eqs_PE1L_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE1L_1_syn[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     # PEN9-15 -> EPG8-15
     for k4 in range(0,7):
         # PEN to EPG
-        PE2Lv_syn2.append(Synapses(PENv_groups[k4+9], EPGv_groups[k4+8], Ach_eqs_PE2L2v, on_pre='s_achv += 2*w_PE', method='euler'))
-        PE2Lv_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE2L_1_syn2.append(Synapses(PEN_groups[k4+9], EPG_1_groups[k4+8], Ach_eqs_PE2L2_1, on_pre='s_ach += 2*w_PE', method='euler'))
+        PE2L_1_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     for k4 in range(0,6):
         # PEN to EPG
-        PE1Lv_syn2.append(Synapses(PENv_groups[k4+10], EPGv_groups[k4+8], Ach_eqs_PE1L2v, on_pre='s_achv += 1*w_PE', method='euler'))
-        PE1Lv_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+        PE1L_1_syn2.append(Synapses(PEN_groups[k4+10], EPG_1_groups[k4+8], Ach_eqs_PE1L2_1, on_pre='s_ach += 1*w_PE', method='euler'))
+        PE1L_1_syn2[k4].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
-    PE1Lv_syn2.append(Synapses(PENv_groups[9], EPGv_groups[15], Ach_eqs_PE1L2v, on_pre='s_achv += 1*w_PE', method='euler'))
-    PE1Lv_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
+    PE1L_1_syn2.append(Synapses(PEN_groups[9], EPG_1_groups[15], Ach_eqs_PE1L2_1, on_pre='s_ach += 1*w_PE', method='euler'))
+    PE1L_1_syn2[6].connect(j='u for u in range(0,3)', skip_if_invalid=True)
     
     
     print("All synapse connections completed!")
@@ -497,22 +476,22 @@ def simulator(
     PRM14 = PopulationRateMonitor(EPG_groups[14])
     PRM15 = PopulationRateMonitor(EPG_groups[15])
 
-    PRM0v = PopulationRateMonitor(EPGv_groups[0])
-    PRM1v = PopulationRateMonitor(EPGv_groups[1]) 
-    PRM2v = PopulationRateMonitor(EPGv_groups[2]) 
-    PRM3v = PopulationRateMonitor(EPGv_groups[3]) 
-    PRM4v = PopulationRateMonitor(EPGv_groups[4]) 
-    PRM5v = PopulationRateMonitor(EPGv_groups[5])
-    PRM6v = PopulationRateMonitor(EPGv_groups[6])
-    PRM7v = PopulationRateMonitor(EPGv_groups[7])
-    PRM8v = PopulationRateMonitor(EPGv_groups[8])
-    PRM9v = PopulationRateMonitor(EPGv_groups[9])
-    PRM10v = PopulationRateMonitor(EPGv_groups[10])
-    PRM11v = PopulationRateMonitor(EPGv_groups[11])
-    PRM12v = PopulationRateMonitor(EPGv_groups[12])
-    PRM13v = PopulationRateMonitor(EPGv_groups[13])
-    PRM14v = PopulationRateMonitor(EPGv_groups[14])
-    PRM15v = PopulationRateMonitor(EPGv_groups[15])
+    PRM0_1 = PopulationRateMonitor(EPG_1_groups[0])
+    PRM1_1 = PopulationRateMonitor(EPG_1_groups[1]) 
+    PRM2_1 = PopulationRateMonitor(EPG_1_groups[2]) 
+    PRM3_1 = PopulationRateMonitor(EPG_1_groups[3]) 
+    PRM4_1 = PopulationRateMonitor(EPG_1_groups[4]) 
+    PRM5_1 = PopulationRateMonitor(EPG_1_groups[5])
+    PRM6_1 = PopulationRateMonitor(EPG_1_groups[6])
+    PRM7_1 = PopulationRateMonitor(EPG_1_groups[7])
+    PRM8_1 = PopulationRateMonitor(EPG_1_groups[8])
+    PRM9_1 = PopulationRateMonitor(EPG_1_groups[9])
+    PRM10_1 = PopulationRateMonitor(EPG_1_groups[10])
+    PRM11_1 = PopulationRateMonitor(EPG_1_groups[11])
+    PRM12_1 = PopulationRateMonitor(EPG_1_groups[12])
+    PRM13_1 = PopulationRateMonitor(EPG_1_groups[13])
+    PRM14_1 = PopulationRateMonitor(EPG_1_groups[14])
+    PRM15_1 = PopulationRateMonitor(EPG_1_groups[15])
 
     PRM0p = PopulationRateMonitor(PEN_groups[0])
     PRM1p = PopulationRateMonitor(PEN_groups[1])
@@ -531,36 +510,36 @@ def simulator(
     PRM14p = PopulationRateMonitor(PEN_groups[14])
     PRM15p = PopulationRateMonitor(PEN_groups[15])
     
-    PRM0pv = PopulationRateMonitor(PENv_groups[0])
-    PRM1pv = PopulationRateMonitor(PENv_groups[1])
-    PRM2pv = PopulationRateMonitor(PENv_groups[2])
-    PRM3pv = PopulationRateMonitor(PENv_groups[3])
-    PRM4pv = PopulationRateMonitor(PENv_groups[4])
-    PRM5pv = PopulationRateMonitor(PENv_groups[5])
-    PRM6pv = PopulationRateMonitor(PENv_groups[6])
-    PRM7pv = PopulationRateMonitor(PENv_groups[7])
-    PRM8pv = PopulationRateMonitor(PENv_groups[8])
-    PRM9pv = PopulationRateMonitor(PENv_groups[9])
-    PRM10pv = PopulationRateMonitor(PENv_groups[10])
-    PRM11pv = PopulationRateMonitor(PENv_groups[11])
-    PRM12pv = PopulationRateMonitor(PENv_groups[12])
-    PRM13pv = PopulationRateMonitor(PENv_groups[13])
-    PRM14pv = PopulationRateMonitor(PENv_groups[14])
-    PRM15pv = PopulationRateMonitor(PENv_groups[15])
+    # PRM0p_1 = PopulationRateMonitor(PEN_1_groups[0])
+    # PRM1p_1 = PopulationRateMonitor(PEN_1_groups[1])
+    # PRM2p_1 = PopulationRateMonitor(PEN_1_groups[2])
+    # PRM3p_1 = PopulationRateMonitor(PEN_1_groups[3])
+    # PRM4p_1 = PopulationRateMonitor(PEN_1_groups[4])
+    # PRM5p_1 = PopulationRateMonitor(PEN_1_groups[5])
+    # PRM6p_1 = PopulationRateMonitor(PEN_1_groups[6])
+    # PRM7p_1 = PopulationRateMonitor(PEN_1_groups[7])
+    # PRM8p_1 = PopulationRateMonitor(PEN_1_groups[8])
+    # PRM9p_1 = PopulationRateMonitor(PEN_1_groups[9])
+    # PRM10p_1 = PopulationRateMonitor(PEN_1_groups[10])
+    # PRM11p_1 = PopulationRateMonitor(PEN_1_groups[11])
+    # PRM12p_1 = PopulationRateMonitor(PEN_1_groups[12])
+    # PRM13p_1 = PopulationRateMonitor(PEN_1_groups[13])
+    # PRM14p_1 = PopulationRateMonitor(PEN_1_groups[14])
+    # PRM15p_1 = PopulationRateMonitor(PEN_1_groups[15])
 
     PRMR = PopulationRateMonitor(R)
-    mon_R = StateMonitor(R, ['v', 'IsynEI', 'IsynEIv', 'Isyn_ii', 'IsynEIclip', 'IsynEItot', 'IsynEImax'], record=True)
+    mon_R = StateMonitor(R, ['v', 'IsynEI', 'IsynEI_1', 'Isyn_ii', 'IsynEItot',], record=True)
     mon_EPG = StateMonitor(EPG, ['v', 'Isyn', 'Isyn_i', 'Isyn_PE'], record=True)
-    mon_EPGv = StateMonitor(EPGv, ['v', 'Isyn_v', 'Isyn_iv', 'Isyn_PEv'], record=True)
+    mon_EPG_1 = StateMonitor(EPG_1, ['v', 'Isyn_1', 'Isyn_i_1', 'Isyn_PE_1'], record=True)
     mon_syn = StateMonitor(S_IE, ['s_GABAA', 'Isyn_i_post'], record=True)
-    mon_synv = StateMonitor(S_IEv, ['s_GABAA', 'Isyn_iv_post'], record=True)
+    mon_syn_1 = StateMonitor(S_IE_1, ['s_GABAA', 'Isyn_i_1_post'], record=True)
 
     # SM = SpikeMonitor(EPG)
-    # SMv = SpikeMonitor(EPGv)
+    # SM_1 = SpikeMonitor(EPG_1)
     print('collect')
     net=Network(collect())
     net.add(EPG_groups,EPG_syn,PEN_groups,PEN_syn,EP_syn,PE2R_syn,PE2L_syn,PE1R_syn,PE1L_syn,PE2R_syn2,PE2L_syn2,PE1R_syn2,PE1L_syn2,PE7_syn,PE8_syn)
-    net.add(EPGv_groups,EPGv_syn,PENv_groups,PENv_syn,EPv_syn,PE2Rv_syn,PE2Lv_syn,PE1Rv_syn,PE1Lv_syn,PE2Rv_syn2,PE2Lv_syn2,PE1Rv_syn2,PE1Lv_syn2,PE7v_syn,PE8v_syn)
+    net.add(EPG_1_groups,EPG_1_syn,EP_1_syn,PE2R_1_syn,PE2L_1_syn,PE1R_1_syn,PE1L_1_syn,PE2R_1_syn2,PE2L_1_syn2,PE1R_1_syn2,PE1L_1_syn2,PE7_1_syn,PE8_1_syn)
 
     # run simulation
 
@@ -570,12 +549,12 @@ def simulator(
     theta_r = stimulus_location/2
     theta_l = theta_r + np.pi
     
-    stimulus_location_v %= 2*np.pi
-    theta_r_v = stimulus_location_v/2
-    theta_l_v = theta_r_v + np.pi
+    stimulus_location_1 %= 2*np.pi
+    theta_r_1 = stimulus_location_1/2
+    theta_l_1 = theta_r_1 + np.pi
     
     A = stimulus_strength
-    A_v = stimulus_strength_v
+    A_1 = stimulus_strength_1
     
     for i in range(0,8):
         EPG_groups[i].I = visual_cue(theta_r, i, A)
@@ -583,16 +562,16 @@ def simulator(
         EPG_groups[i].I = visual_cue(theta_l, i, A)
         
     for i in range(0,8):
-        EPGv_groups[i].I = visual_cue(theta_r_v, i, A_v)
+        EPG_1_groups[i].I = visual_cue(theta_r_1, i, A_1)
     for i in range(8,16):
-        EPGv_groups[i].I = visual_cue(theta_l_v, i, A_v)
+        EPG_1_groups[i].I = visual_cue(theta_l_1, i, A_1)
     
     net.run(t_epg_open*ms)
 
     for i in range(0,16):
         EPG_groups[i].I = 0
     for i in range(0,16):
-        EPGv_groups[i].I = 0
+        EPG_1_groups[i].I = 0
     net.run(t_epg_close * ms)
 
     print('body rotation')
@@ -600,10 +579,10 @@ def simulator(
         for i in range(8): PEN_groups[i].I = shifter_strength
     elif half_PEN == 'left':
         for i in range(8,16): PEN_groups[i].I = shifter_strength
-    if half_PENv == 'right':
-        for i in range(8): PENv_groups[i].I = shifter_strength_v
-    elif half_PENv == 'left':
-        for i in range(8,16): PENv_groups[i].I = shifter_strength_v
+    # if half_PEN_1 == 'right':
+    #     for i in range(8): PEN_1_groups[i].I = shifter_strength_1
+    # elif half_PEN_1 == 'left':
+    #     for i in range(8,16): PEN_1_groups[i].I = shifter_strength_1
             
     net.run(t_pen_open * ms)
     end  = time.time()
@@ -611,41 +590,41 @@ def simulator(
     
     device.build(run=True, clean=True)
 
-    firing_rate = [PRM0.smooth_rate(width=5*ms),
-                    PRM1.smooth_rate(width=5*ms),
-                    PRM2.smooth_rate(width=5*ms),
-                    PRM3.smooth_rate(width=5*ms),
-                    PRM4.smooth_rate(width=5*ms),
-                    PRM5.smooth_rate(width=5*ms),
-                    PRM6.smooth_rate(width=5*ms),
-                    PRM7.smooth_rate(width=5*ms),
-                    PRM8.smooth_rate(width=5*ms),
-                    PRM9.smooth_rate(width=5*ms),
-                    PRM10.smooth_rate(width=5*ms),
-                    PRM11.smooth_rate(width=5*ms),
-                    PRM12.smooth_rate(width=5*ms),
-                    PRM13.smooth_rate(width=5*ms),
-                    PRM14.smooth_rate(width=5*ms),
-                    PRM15.smooth_rate(width=5*ms),]
+    fr = [PRM0.smooth_rate(width=5*ms),
+        PRM1.smooth_rate(width=5*ms),
+        PRM2.smooth_rate(width=5*ms),
+        PRM3.smooth_rate(width=5*ms),
+        PRM4.smooth_rate(width=5*ms),
+        PRM5.smooth_rate(width=5*ms),
+        PRM6.smooth_rate(width=5*ms),
+        PRM7.smooth_rate(width=5*ms),
+        PRM8.smooth_rate(width=5*ms),
+        PRM9.smooth_rate(width=5*ms),
+        PRM10.smooth_rate(width=5*ms),
+        PRM11.smooth_rate(width=5*ms),
+        PRM12.smooth_rate(width=5*ms),
+        PRM13.smooth_rate(width=5*ms),
+        PRM14.smooth_rate(width=5*ms),
+        PRM15.smooth_rate(width=5*ms),]
     
-    firing_rate_v = [PRM0v.smooth_rate(width=5*ms),
-                    PRM1v.smooth_rate(width=5*ms),
-                    PRM2v.smooth_rate(width=5*ms),
-                    PRM3v.smooth_rate(width=5*ms),
-                    PRM4v.smooth_rate(width=5*ms),
-                    PRM5v.smooth_rate(width=5*ms),
-                    PRM6v.smooth_rate(width=5*ms),
-                    PRM7v.smooth_rate(width=5*ms),
-                    PRM8v.smooth_rate(width=5*ms),
-                    PRM9v.smooth_rate(width=5*ms),
-                    PRM10v.smooth_rate(width=5*ms),
-                    PRM11v.smooth_rate(width=5*ms),
-                    PRM12v.smooth_rate(width=5*ms),
-                    PRM13v.smooth_rate(width=5*ms),
-                    PRM14v.smooth_rate(width=5*ms),
-                    PRM15v.smooth_rate(width=5*ms),]
+    fr_1 = [PRM0_1.smooth_rate(width=5*ms),
+                    PRM1_1.smooth_rate(width=5*ms),
+                    PRM2_1.smooth_rate(width=5*ms),
+                    PRM3_1.smooth_rate(width=5*ms),
+                    PRM4_1.smooth_rate(width=5*ms),
+                    PRM5_1.smooth_rate(width=5*ms),
+                    PRM6_1.smooth_rate(width=5*ms),
+                    PRM7_1.smooth_rate(width=5*ms),
+                    PRM8_1.smooth_rate(width=5*ms),
+                    PRM9_1.smooth_rate(width=5*ms),
+                    PRM10_1.smooth_rate(width=5*ms),
+                    PRM11_1.smooth_rate(width=5*ms),
+                    PRM12_1.smooth_rate(width=5*ms),
+                    PRM13_1.smooth_rate(width=5*ms),
+                    PRM14_1.smooth_rate(width=5*ms),
+                    PRM15_1.smooth_rate(width=5*ms),]
     
-    firing_rate_pen = [PRM0p.smooth_rate(width=5*ms),
+    fr_pen = [PRM0p.smooth_rate(width=5*ms),
                        PRM1p.smooth_rate(width=5*ms),
                        PRM2p.smooth_rate(width=5*ms),
                        PRM3p.smooth_rate(width=5*ms),
@@ -662,33 +641,33 @@ def simulator(
                        PRM14p.smooth_rate(width=5*ms),
                        PRM15p.smooth_rate(width=5*ms),]
     
-    firing_rate_pen_v = [PRM0pv.smooth_rate(width=5*ms),
-                       PRM1pv.smooth_rate(width=5*ms),
-                       PRM2pv.smooth_rate(width=5*ms),
-                       PRM3pv.smooth_rate(width=5*ms),
-                       PRM4pv.smooth_rate(width=5*ms),
-                       PRM5pv.smooth_rate(width=5*ms),
-                       PRM6pv.smooth_rate(width=5*ms),
-                       PRM7pv.smooth_rate(width=5*ms),  
-                       PRM8pv.smooth_rate(width=5*ms),
-                       PRM9pv.smooth_rate(width=5*ms),
-                       PRM10pv.smooth_rate(width=5*ms),
-                       PRM11pv.smooth_rate(width=5*ms),
-                       PRM12pv.smooth_rate(width=5*ms),
-                       PRM13pv.smooth_rate(width=5*ms),
-                       PRM14pv.smooth_rate(width=5*ms),
-                       PRM15pv.smooth_rate(width=5*ms),]
+    # fr_pen_1 = [PRM0p_1.smooth_rate(width=5*ms),
+    #                    PRM1p_1.smooth_rate(width=5*ms),
+    #                    PRM2p_1.smooth_rate(width=5*ms),
+    #                    PRM3p_1.smooth_rate(width=5*ms),
+    #                    PRM4p_1.smooth_rate(width=5*ms),
+    #                    PRM5p_1.smooth_rate(width=5*ms),
+    #                    PRM6p_1.smooth_rate(width=5*ms),
+    #                    PRM7p_1.smooth_rate(width=5*ms),  
+    #                    PRM8p_1.smooth_rate(width=5*ms),
+    #                    PRM9p_1.smooth_rate(width=5*ms),
+    #                    PRM10p_1.smooth_rate(width=5*ms),
+    #                    PRM11p_1.smooth_rate(width=5*ms),
+    #                    PRM12p_1.smooth_rate(width=5*ms),
+    #                    PRM13p_1.smooth_rate(width=5*ms),
+    #                    PRM14p_1.smooth_rate(width=5*ms),
+    #                    PRM15p_1.smooth_rate(width=5*ms),]
     
-    firing_rate_r = [PRMR.smooth_rate(width=5*ms),]
+    fr_r = [PRMR.smooth_rate(width=5*ms),]
     
-    firing_rate_pen_array = np.array(firing_rate_pen)
-    firing_rate_pen_array_v = np.array(firing_rate_pen_v)
-    firing_rate_r_array = np.array(firing_rate_r)
+    fr_pen = np.array(fr_pen)
+    # fr_pen_1 = np.array(fr_pen_1)
+    fr_r = np.array(fr_r)
 
-    firing_rate_array = np.array(firing_rate)
-    firing_rate_array_v = np.array(firing_rate_v)
-    eval_time = np.linspace(0, len(firing_rate[0])/10000, len(firing_rate[0]))
-    return eval_time, firing_rate_array, firing_rate_array_v, firing_rate_pen_array, firing_rate_pen_array_v, firing_rate_r_array, mon_R, mon_syn, mon_synv, mon_EPG, mon_EPGv
+    fr = np.array(fr)
+    fr_1 = np.array(fr_1)
+    t = np.linspace(0, len(fr[0])/10000, len(fr[0]))
+    return t, fr, fr_1, fr_pen, fr_r, mon_R, mon_syn, mon_syn_1, mon_EPG, mon_EPG_1
 
 if __name__ == '__main__':
-    t, fr, fr_v, fr_pen, fr_pen_v, fr_r, mon_R, mon_syn, mon_synv, mon_EPG, mon_EPGv = simulator()    
+    t, fr, fr_1, fr_pen, fr_r, mon_R, mon_syn, mon_syn_1, mon_EPG, mon_EPG_1 = simulator()    

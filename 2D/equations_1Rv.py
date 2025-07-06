@@ -1,6 +1,62 @@
 # model equations
+
+
+eqs_R = '''
+dv/dt = (IsynEItot + Isyn_ii + I + E_l - v)/taum + sigma*sqrt(2/taum)*xi : 1 (unless refractory)
+I : 1
+IsynEI : 1
+IsynEI_1 : 1
+IsynEItot = IsynEI + IsynEI_1 : 1
+Isyn_ii: 1
+'''
+
+Imax  = 0.8   # pA，最終飽和值
+Ihalf = 0.4  # 半飽和點
+k     = 0.08
+
+# EPG -> R
+Ach_eqs_EI = '''
+ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
+IsynEI_post = -s_ach*(v-E_ach):1 (summed)
+wach : 1 
+'''
+
+# R -> EPG
+GABA_eqs = '''
+ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
+Isyn_i_post = -s_GABAA*(v-E_GABAA):1 (summed)
+wach : 1
+'''
+
+# R <-> R
+GABA_eqs_i = '''
+ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
+Isyn_ii_post = -s_GABAA*(v-E_GABAA):1 (summed)
+wach : 1
+'''
+
+# EPG_1 -> R
+Ach_eqs_EI_1 = '''
+ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
+IsynEI_1_post = -s_ach*(v-E_ach):1 (summed)
+wach : 1 
+'''
+
+# R -> EPG_1
+GABA_eqs_1 = '''
+ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
+Isyn_i_1_post = -s_GABAA*(v-E_GABAA):1 (summed)
+wach : 1
+'''
+
+GABA_eqs_i_1 = '''
+ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
+Isyn_ii_1_post = -s_GABAA*(v-E_GABAA):1 (summed)
+wach : 1
+'''
+
 eqs_EPG = '''
-dv/dt = ( Isyn + Isyn_i +Isyn_PE + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
+dv/dt = ( Isyn + Isyn_i + Isyn_PE + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
 I : 1
 Isyn : 1
 Isyn_i : 1
@@ -15,27 +71,43 @@ Isyn_PE1L2:1
 Isyn_PE7:1
 Isyn_PE8:1
 Isyn_PE = Isyn_PE2R + Isyn_PE2L + Isyn_PE1R + Isyn_PE1L + Isyn_PE2R2 + Isyn_PE2L2 + Isyn_PE1R2 + Isyn_PE1L2 + Isyn_PE7 + Isyn_PE8:1
+'''
 
-'''
-eqs_R = '''
-dv/dt = (IsynEI + Isyn_ii + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
+eqs_EPG_1 = '''
+dv/dt = ( Isyn_1 + Isyn_i_1 +Isyn_PE_1 + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
 I : 1
-IsynEI : 1
-Isyn_ii:1   
+Isyn_1 : 1
+Isyn_i_1 : 1
+Isyn_PE2R_1 :1
+Isyn_PE2L_1 :1
+Isyn_PE1R_1 :1
+Isyn_PE1L_1 :1
+Isyn_PE2R2_1:1
+Isyn_PE2L2_1 :1
+Isyn_PE1R2_1 :1
+Isyn_PE1L2_1:1
+Isyn_PE7_1:1
+Isyn_PE8_1:1
+Isyn_PE_1 = Isyn_PE2R_1 + Isyn_PE2L_1 + Isyn_PE1R_1 + Isyn_PE1L_1 + Isyn_PE2R2_1 + Isyn_PE2L2_1 + Isyn_PE1R2_1 + Isyn_PE1L2_1 + Isyn_PE7_1 + Isyn_PE8_1:1
 '''
+
 eqs_PEN = '''
-dv/dt = (Isyn_pp + Isyn_EP + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
+dv/dt = (Isyn_pp + Isyn_EP + Isyn_EP_1 + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
 I : 1
 Isyn_pp : 1
 Isyn_EP : 1
+Isyn_EP_1 : 1
+Isyn_EP_tot = Isyn_EP + Isyn_EP_1 : 1
 '''
 
+# EPG <-> EPG
 Ach_eqs = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
 Isyn_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
+# PEN <-> PEN
 Ach_eqs_PP = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
 Isyn_pp_post = -s_ach*(v-E_ach):1 (summed)
@@ -110,159 +182,88 @@ Isyn_PE8_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_EI = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-IsynEI_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-GABA_eqs = '''
-ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
-Isyn_i_post = -s_GABAA*(v-E_GABAA):1 (summed)
-wach : 1
-'''
-
-GABA_eqs_i = '''
-ds_GABAA/dt = -s_GABAA/tau_GABAA : 1 (clock-driven)
-Isyn_ii_post = -s_GABAA*(v-E_GABAA):1 (summed)
-wach : 1
-'''
-
 
 
 #########
 
 # model equations
 
-# model equations
-eqs_EPGv = '''
-dv/dt = ( Isynv + Isyn_iv +Isyn_PEv + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
-I : 1
-Isynv : 1
-Isyn_iv : 1
-Isyn_PE2Rv :1
-Isyn_PE2Lv :1
-Isyn_PE1Rv :1
-Isyn_PE1Lv :1
-Isyn_PE2R2v:1
-Isyn_PE2L2v :1
-Isyn_PE1R2v :1
-Isyn_PE1L2v:1
-Isyn_PE7v:1
-Isyn_PE8v:1
-Isyn_PEv = Isyn_PE2Rv + Isyn_PE2Lv + Isyn_PE1Rv + Isyn_PE1Lv + Isyn_PE2R2v + Isyn_PE2L2v + Isyn_PE1R2v + Isyn_PE1L2v + Isyn_PE7v + Isyn_PE8v:1
-
-'''
-eqs_Rv = '''
-dv/dt = (IsynEIv + Isyn_iiv + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
-I : 1
-IsynEIv : 1
-Isyn_iiv:1   
-'''
-
-
-eqs_PENv = '''
-dv/dt = (Isyn_ppv + Isyn_EPv + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
-I : 1
-Isyn_ppv : 1
-Isyn_EPv : 1
-'''
-
-Ach_eqs_v = '''
+Ach_eqs_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isynv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PPv = '''
+Ach_eqs_PP_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_ppv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_pp_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_EPv = '''
+Ach_eqs_EP_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_EPv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_EP_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PEv = '''
+Ach_eqs_PE_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PEv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE2Rv = '''
+Ach_eqs_PE2R_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2Rv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE2R_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE2Lv = '''
+Ach_eqs_PE2L_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2Lv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE2L_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE1Lv = '''
+Ach_eqs_PE1L_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1Lv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE1L_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
-Ach_eqs_PE1Rv = '''
+Ach_eqs_PE1R_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1Rv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE1R_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
-Ach_eqs_PE2R2v = '''
+Ach_eqs_PE2R2_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2R2v_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE2L2v = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2L2v_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE2R2_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE1L2v = '''
+Ach_eqs_PE2L2_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1L2v_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-Ach_eqs_PE1R2v = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1R2v_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE2L2_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE7v = '''
+Ach_eqs_PE1L2_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE7v_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE1L2_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
-Ach_eqs_PE8v = '''
+Ach_eqs_PE1R2_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE8v_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_EIv = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-IsynEIv_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE1R2_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-GABA_eqs_v = '''
-ds_GABAAv/dt = -s_GABAAv/tau_GABAA : 1 (clock-driven)
-Isyn_iv_post = -s_GABAAv*(v-E_GABAA):1 (summed)
-wach : 1
+Ach_eqs_PE7_1 = '''
+ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
+Isyn_PE7_1_post = -s_ach*(v-E_ach):1 (summed)
+wach : 1 
 '''
-
-GABA_eqs_iv = '''
-ds_GABAAv/dt = -s_GABAAv/tau_GABAA : 1 (clock-driven)
-Isyn_iiv_post = -s_GABAAv*(v-E_GABAA):1 (summed)
-wach : 1
+Ach_eqs_PE8_1 = '''
+ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
+Isyn_PE8_1_post = -s_ach*(v-E_ach):1 (summed)
+wach : 1 
 '''
-

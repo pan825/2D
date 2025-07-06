@@ -6,8 +6,7 @@ import matplotlib.pyplot as plt
 import time
 import os
 from brian2 import *
-import RE16
-import RE16_td
+import RE16 as RE16
 import utils
 import fit
 import visualize
@@ -117,21 +116,16 @@ class Simulator:
             # PEN_input_phase: float = 0.0,
             # PEN_input_oscillation_amplitude: float = 1
             ):
-
-        if t_epg_open is not None:
-            self.t_epg_open = t_epg_open
-        if t_epg_close is not None:
-            self.t_epg_close = t_epg_close
-        if t_pen_open is not None:
-            self.t_pen_open = t_pen_open
-        if stimulus_strength is not None:
-            self.stimulus_strength = stimulus_strength
-        if stimulus_location is not None:
-            self.stimulus_location = stimulus_location
-        if shifter_strength is not None:
-            self.shifter_strength = shifter_strength
-        if half_PEN is not None:
-            self.half_PEN = half_PEN
+        # Use helper to update only the provided parameters
+        self._update_attrs(
+            t_epg_open=t_epg_open,
+            t_epg_close=t_epg_close,
+            t_pen_open=t_pen_open,
+            stimulus_strength=stimulus_strength,
+            stimulus_location=stimulus_location,
+            shifter_strength=shifter_strength,
+            half_PEN=half_PEN,
+        )
         
         t, fr, fr_pen, fr_r = RE16.simulator(
             **self.parameters.__dict__,
@@ -160,18 +154,8 @@ class Simulator:
         Transforms the raw firing rates into a format suitable for analysis,
         including conversion to ellipsoid body (EB) representation.
         """
-        t, fr = self.time, self.fr
-        
-        # Insert zeros at positions 8 and 9 (missing neurons in the circuit)
-        expanded_rates = np.insert(fr, 8, 0, axis=0)
-        expanded_rates = np.insert(expanded_rates, 9, 0, axis=0)
-        
-        # Apply temporal convolution and convert to EB representation
-        conv_rates, conv_time = utils.conv(expanded_rates)
-        eb_fr = utils.eip_to_eb_fast(conv_rates.T)
-    
-        self.t_proc = conv_time
-        self.fr_proc = eb_fr.T
+        # Re-use shared preprocessing helper
+        self.t_proc, self.fr_proc = self._expand_and_convert(self.fr)
     
     def save(self, file_path='simulation_results.dat', folder=None):
         """Save simulation results to a file.
@@ -197,29 +181,13 @@ class Simulator:
         print(f'\n{time.strftime("%Y-%m-%d %H:%M:%S")}: file saved as {file_path}')
 
     def load(self, file_path='simulation_results.dat'):
-        """Load simulation results from a file.
-        
-        Args:
-            file_path: Path to the file containing simulation results
-        """
-        # Use numpy for efficient file loading
+        """Load simulation results from a file and preprocess them."""
         data = np.loadtxt(file_path)
-        t = data[:, 0]
-        fr = data[:, 1:]  # EIP0 - EIP17
-        
-        # Insert zeros at positions 8 and 9 (missing neurons)
-        fr_with_zeros = np.zeros((fr.shape[0], fr.shape[1] + 2))
-        fr_with_zeros[:, :8] = fr[:, :8]
-        fr_with_zeros[:, 10:] = fr[:, 8:]
-        
-        # Process the data
-        fr_conv, t_conv = utils.conv(fr_with_zeros.T)
-        eb_fr = utils.eip_to_eb_fast(fr_conv.T)
-        
-        self.time = t
-        self.fr = fr.T
-        self.t_proc = t_conv
-        self.fr_proc = eb_fr.T
+        self.time = data[:, 0]
+        # Transpose so that shape is (neurons, time)
+        self.fr = data[:, 1:].T
+        # Shared preprocessing
+        self.t_proc, self.fr_proc = self._expand_and_convert(self.fr)
 
     def fit_gaussian(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
         """Fit a Gaussian to the processed firing rate data.
@@ -368,14 +336,19 @@ class Simulator:
             plt.savefig(os.path.join(folder, file_name))
             plt.close()
             
-    def xt_plot(self):
+    def xt_plot(self, v=False):
         """Plot the position (gx) over time."""
         self._ensure_gaussian_fit()
         
         plt.figure(figsize=(10, 6))
-        plt.plot(self.gt, self.gx * 2 * np.pi/16, 'b-', linewidth=2)
+        plt.plot(self.gt, self.gx * 2 * np.pi/16, 'b-', linewidth=2, label='Position')
         plt.xlabel('Time (s)')
         plt.ylabel('Position (rad)')
+        if v:
+            v = np.gradient(self.gx * 2 * np.pi/16, self.gt)
+            plt.plot(self.gt, v, linewidth=2, label='Velocity')
+
+        plt.legend()        
         plt.title('Position vs Time')
         plt.grid(True, alpha=0.3)
         plt.show()
@@ -428,9 +401,33 @@ class Simulator:
         print(f'Half PEN: {self.half_PEN}')
         print('='*40)
         
-        
+    # ---------------------------------------------------------------------
+    # Helper utilities (private)
+    # ---------------------------------------------------------------------
+    def _update_attrs(self, **kwargs):
+        """Update instance attributes only if a new (non-None) value is given."""
+        for key, value in kwargs.items():
+            if value is not None:
+                setattr(self, key, value)
 
+    def _expand_and_convert(self, fr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
+        """Insert missing neuron positions and convert to EB representation.
+
+        Args:
+            fr: Firing rates with shape (neurons, time)
         
+        Returns:
+            Tuple (processed_time, processed_firing_rates)
+        """
+        # Insert zeros for the two absent neurons in the circuit
+        expanded = np.insert(fr, 8, 0, axis=0)
+        expanded = np.insert(expanded, 9, 0, axis=0)
+        # Temporal convolution
+        conv_rates, conv_time = utils.conv(expanded)
+        # Convert to ellipsoid body coordinates
+        eb_fr = utils.eip_to_eb_fast(conv_rates.T)
+        return conv_time, eb_fr.T
+
 if __name__ == '__main__':
     network = Simulator()
     network.run(stimulus_strength=0.05, stimulus_location=0.0, shifter_strength=0.015, half_PEN='right')

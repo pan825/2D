@@ -1,7 +1,7 @@
 from brian2 import *
 import numpy as np
 import time
-from equations_1Rv import *
+from equations import *
 
 def visual_cue(theta, index, stimulus = 0.03, sigma = 2 * np.pi/8):
     """
@@ -113,16 +113,18 @@ def simulator(
     EPGv = NeuronGroup(48, model=eqs_EPGv, threshold='v>Vth', reset='v=Vr', refractory=f'{EPGv_refractory}*ms', method='euler' )
     PENv = NeuronGroup(48,model=eqs_PENv, threshold='v>Vth', reset='v=Vr', refractory='1*ms', method='euler')
     R = NeuronGroup(3,model=eqs_R, threshold='v>Vth', reset='v=Vr', refractory=f'{R_refractory}*ms', method='euler')
+    Rv = NeuronGroup(3,model=eqs_Rv, threshold='v>Vth', reset='v=Vr', refractory=f'{R_refractory}*ms', method='euler')
 
     # initialize neuron1
     EPG.v = E_l
-    EPG.Isyn_cap = Isynmax
     PEN.v = E_l
     EPGv.v = E_l
     PENv.v = E_l
     R.v = E_l
-    EPGv.Isyn_cap_v = Isynmaxv
-    R.IsynEImax = IEImax
+    Rv.v = E_l
+    # EPGv.Isyn_cap_v = Isynmaxv
+    # R.IsynEImax = IEImax
+    # EPG.Isyn_cap = Isynmax
 
     EPG_groups = []
     EPG_groups.append(EPG[0:3]) # EPG1
@@ -369,7 +371,7 @@ def simulator(
         PENv_syn[k2].connect(condition='i != j')
     
     # EPG to R
-    S_EIv = Synapses(EPGv, R, model=Ach_eqs_EIv, on_pre='s_achv += w_EIv', method='euler')
+    S_EIv = Synapses(EPGv, Rv, model=Ach_eqs_EIv, on_pre='s_achv += w_EIv', method='euler')
     for a in range(0,48):
         for b in range(0,3):
             S_EIv.connect(i=a, j=b)
@@ -378,10 +380,9 @@ def simulator(
     # R to EPG
     # on_pre='''s_GABAA += w_IE
     #     s_GABAA = clip(s_GABAA, 0, g_GABAA_max)'''
-    S_IEv = Synapses(R, EPGv, 
-                    model=GABAv_eqs, 
-                    on_pre='''s_GABAA += w_IE
-                            s_GABAA = clip(s_GABAA, 0, s_GABAA_max)''',
+    S_IEv = Synapses(Rv, EPGv, 
+                    model=GABA_eqs_v, 
+                    on_pre='s_GABAAv += w_IE',
                     method='euler')
     for a2 in range(0,48):
         for b2 in range(0,3):
@@ -549,11 +550,12 @@ def simulator(
     PRM15pv = PopulationRateMonitor(PENv_groups[15])
 
     PRMR = PopulationRateMonitor(R)
-    mon_R = StateMonitor(R, ['v', 'IsynEI', 'IsynEIv', 'Isyn_ii', 'IsynEIclip', 'IsynEItot', 'IsynEImax'], record=True)
+    PRMRv = PopulationRateMonitor(Rv)
+    mon_R = StateMonitor(R, ['v', 'IsynEI', 'Isyn_ii'], record=True)
+    mon_Rv = StateMonitor(Rv, ['v', 'IsynEIv', 'Isyn_iiv'], record=True)
     mon_EPG = StateMonitor(EPG, ['v', 'Isyn', 'Isyn_i', 'Isyn_PE'], record=True)
-    mon_EPGv = StateMonitor(EPGv, ['v', 'Isyn_v', 'Isyn_iv', 'Isyn_PEv'], record=True)
-    mon_syn = StateMonitor(S_IE, ['s_GABAA', 'Isyn_i_post'], record=True)
-    mon_synv = StateMonitor(S_IEv, ['s_GABAA', 'Isyn_iv_post'], record=True)
+    mon_EPGv = StateMonitor(EPGv, ['v', 'Isynv', 'Isyn_iv', 'Isyn_PEv'], record=True)
+
 
     # SM = SpikeMonitor(EPG)
     # SMv = SpikeMonitor(EPGv)
@@ -688,7 +690,7 @@ def simulator(
     firing_rate_array = np.array(firing_rate)
     firing_rate_array_v = np.array(firing_rate_v)
     eval_time = np.linspace(0, len(firing_rate[0])/10000, len(firing_rate[0]))
-    return eval_time, firing_rate_array, firing_rate_array_v, firing_rate_pen_array, firing_rate_pen_array_v, firing_rate_r_array, mon_R, mon_syn, mon_synv, mon_EPG, mon_EPGv
+    return eval_time, firing_rate_array, firing_rate_array_v, firing_rate_pen_array, firing_rate_pen_array_v, firing_rate_r_array, mon_R, mon_Rv, mon_EPG, mon_EPGv
 
 if __name__ == '__main__':
-    t, fr, fr_v, fr_pen, fr_pen_v, fr_r, mon_R, mon_syn, mon_synv, mon_EPG, mon_EPGv = simulator()    
+    t, fr, fr_v, fr_pen, fr_pen_v, fr_r, mon_R, mon_Rv, mon_EPG, mon_EPGv = simulator()    

@@ -15,6 +15,13 @@ data/
 
 2D/output/
 
+2D/
+
+attractor_surface/
+
+1D/output/
+
+
 # C extensions
 *.so
 

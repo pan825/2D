@@ -127,7 +127,7 @@ class Simulator:
             half_PEN=half_PEN,
         )
         
-        t, fr, fr_pen, fr_r = RE16.simulator(
+        t, fr_epg, fr_pen, fr_r = RE16.simulator(
             **self.parameters.__dict__,
             stimulus_strength=self.stimulus_strength,
             stimulus_location=self.stimulus_location,
@@ -144,9 +144,10 @@ class Simulator:
         
         # Store results (append if multiple simulations)
         self.time = utils.add_array(self.time, t, axis=0) 
-        self.fr = utils.add_array(self.fr, fr, axis=1)
+        self.fr = utils.add_array(self.fr, fr_epg, axis=1)
         self.fr_pen = utils.add_array(self.fr_pen, fr_pen, axis=1)
         self.fr_r = utils.add_array(self.fr_r, fr_r, axis=1)
+
 
     def process_data(self):
         """Process raw simulation data for analysis.
@@ -195,6 +196,9 @@ class Simulator:
         Returns:
             Tuple containing time points, positions, amplitudes, and widths
         """
+        # Ensure data is processed before fitting
+        self._ensure_processed_data()
+        
         t, fr = self.t_proc, self.fr_proc
         gt, gx, gfr, gw = fit.gau_fit(t, fr)
         
@@ -336,7 +340,7 @@ class Simulator:
             plt.savefig(os.path.join(folder, file_name))
             plt.close()
             
-    def xt_plot(self, v=False):
+    def xt_plot(self, v=False, a=False):
         """Plot the position (gx) over time."""
         self._ensure_gaussian_fit()
         
@@ -347,7 +351,9 @@ class Simulator:
         if v:
             v = np.gradient(self.gx * 2 * np.pi/16, self.gt)
             plt.plot(self.gt, v, linewidth=2, label='Velocity')
-
+        if a:
+            a = np.gradient(v, self.gt)
+            plt.plot(self.gt, a, linewidth=2, label='Acceleration')
         plt.legend()        
         plt.title('Position vs Time')
         plt.grid(True, alpha=0.3)
@@ -356,6 +362,7 @@ class Simulator:
             
     def summary(self):
         """Print a summary of the simulation and analysis results."""
+        self.fit_velocity()
         self._ensure_gaussian_fit()
         
         speed_rad = f'{self.angular_velocity:.3f}'
@@ -366,7 +373,7 @@ class Simulator:
         print('='* 40)
         print(f'Angular velocity: {speed_rad:>8} ± {err_rad:>8} [rad/s]')
         print(f'                  {speed_deg:>8} ± {err_deg:>8} [deg/s]')
-        print(f'Rotations/sec:    {self.rotations_per_second:>8} ± {self.std_err/16:>8} [Hz]')
+        print(f'Rotations/sec:    {self.rotations_per_second:>8.3f} ± {self.std_err/16:>8.3f} [Hz]')
         
         # Color code r_squared based on quality
         if abs(self.r_squared) >= 0.95:

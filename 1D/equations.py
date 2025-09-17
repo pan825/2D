@@ -4,19 +4,11 @@ dv/dt = ( Isyn + Isyn_i +Isyn_PE + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 
 I : 1
 Isyn : 1
 Isyn_i : 1
-Isyn_PE2R :1
-Isyn_PE2L :1
-Isyn_PE1R :1
-Isyn_PE1L :1
-Isyn_PE2R2:1
-Isyn_PE2L2 :1
-Isyn_PE1R2 :1
-Isyn_PE1L2:1
-Isyn_PE7:1
-Isyn_PE8:1
-Isyn_PE = Isyn_PE2R + Isyn_PE2L + Isyn_PE1R + Isyn_PE1L + Isyn_PE2R2 + Isyn_PE2L2 + Isyn_PE1R2 + Isyn_PE1L2 + Isyn_PE7 + Isyn_PE8:1
-
+Isyn_PE_2 : 1
+Isyn_PE_1 : 1
+Isyn_PE = Isyn_PE_2 + Isyn_PE_1:1
 '''
+
 eqs_R = '''
 dv/dt = (IsynEI + Isyn_ii + I + E_l - v) / taum + sigma*sqrt(2/taum)*xi: 1 (unless refractory)
 I : 1
@@ -48,65 +40,15 @@ Isyn_EP_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE = '''
+Ach_eqs_PE_1 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE_1_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 
-Ach_eqs_PE2R = '''
+Ach_eqs_PE_2 = '''
 ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2R_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE2L = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2L_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE1L = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1L_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-Ach_eqs_PE1R = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1R_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-Ach_eqs_PE2R2 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2R2_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE2L2 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE2L2_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE1L2 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1L2_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-Ach_eqs_PE1R2 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE1R2_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-
-Ach_eqs_PE7 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE7_post = -s_ach*(v-E_ach):1 (summed)
-wach : 1 
-'''
-Ach_eqs_PE8 = '''
-ds_ach/dt = -s_ach/tau_ach : 1 (clock-driven)
-Isyn_PE8_post = -s_ach*(v-E_ach):1 (summed)
+Isyn_PE_2_post = -s_ach*(v-E_ach):1 (summed)
 wach : 1 
 '''
 

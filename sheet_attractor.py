@@ -1,6 +1,6 @@
 from brian2 import *
-from RE16_4ring_v4_eqs import *
-from RE16_4ring_v3_con import build_pen_to_epg_array
+from sheet_eqs import *
+from sheet_con import build_pen_to_epg_array
 import numpy as np
 import time
 import brian2 as b2

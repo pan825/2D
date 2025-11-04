@@ -2,6 +2,7 @@ brian_standalone/
 brian_build/
 output/
 sweep_parameter/
+figures/
 
 * copy.py
 test.py

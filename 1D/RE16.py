@@ -1,6 +1,6 @@
 from brian2 import *
 from equations import *
-from connectivity import build_pen_to_epg_indices, build_pen_to_epg_array
+from connections import build_pen_to_epg_indices, build_pen_to_epg_array
 import matplotlib.pyplot as plt
 import numpy as np
 import time

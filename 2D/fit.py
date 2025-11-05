@@ -245,13 +245,22 @@ def analyze_trajectory(bump_positions, fit_params, processed_data, events, plot=
         ax2.plot(t, res['x_slope'] * t + res['x_intercept'], '--', color='darkblue', alpha=0.7, linewidth=1)
         ax2.plot(t, res['y_slope'] * t + res['y_intercept'], '--', color='darkred', alpha=0.7, linewidth=1)
 
-    # Dynamic phase markers and spans
-    for start_time, end_time, phase_name, color in phases:
+    # Dynamic phase markers and spans with strength text
+    for i, (start_time, end_time, phase_name, color) in enumerate(phases):
         if end_time <= time_points[-1]:
             ax2.axvline(x=end_time, color=color, linestyle='--', alpha=0.7)
             ax2.text(end_time, ax2.get_ylim()[1] * 0.9, f'{phase_name} end', rotation=90,
                      verticalalignment='top', fontsize=8, color=color)
         ax2.axvspan(start_time, min(end_time, time_points[-1]), alpha=0.1, color=color, label=phase_name)
+        
+        # Add strength text for shift phases
+        if i < len(events) and events[i]['type'] == 'shift':
+            strength = events[i]['strength']
+            mid_time = (start_time + min(end_time, time_points[-1])) / 2
+            ax2.text(mid_time, ax2.get_ylim()[0] + 0.1 * (ax2.get_ylim()[1] - ax2.get_ylim()[0]), 
+                     f'str: {strength:.4f}', ha='center', va='bottom', fontsize=8, 
+                     color=color, weight='bold', bbox=dict(boxstyle='round,pad=0.2', 
+                     facecolor='white', alpha=0.8, edgecolor=color))
 
     ax2.set_xlabel('Time (s)')
     ax2.set_ylabel('Position')

@@ -7,8 +7,6 @@ from tqdm import tqdm, trange
 
 TOTAL_NEURONS = 12288
 TOTAL_INDEX = 4096
-TN = 12288
-TI = 4096
 
 def map_index(i):
     g = i // 3  # subgroup index
@@ -30,10 +28,7 @@ def simulator(
         w_EP = 0.012, # EB -> PEN 
         w_PE = 0.709, # PEN -> EB
         sigma = 0.0001, # noise level
-        
-        stimulus_strength = 0.5, 
-        stimulus_location =0 , # from 0 to np.pi
-        shifter_strength = 0.015,
+
 
         # performance settings
         device_mode = 'runtime', # 'runtime' | 'cpp_standalone' | 'cuda_standalone'
@@ -43,6 +38,9 @@ def simulator(
         use_float32 = False,
         defaultclock_dt = 0.1*ms,
         progress = True,
+
+        # events API
+        events = None,
 
 ):
     """Simulate the head direction network with visual cues and body rotation."""
@@ -182,17 +180,17 @@ def simulator(
         pbar.set_description("Running simulation")
         pbar.update(1)
 
-        def visual_cue_on(x, y, z):
+        def visual_cue_on(x, y, z, strength):
             pbar.set_description("Visual cue on")            
             d = 8
-            EPG_groups[(x)%16][(y)%16][(z)%16].I = 0.5
-            EPG_groups[(x+d)%16][(y)%16][(z)%16].I = 0.5
-            EPG_groups[(x)%16][(y+d)%16][(z)%16].I = 0.5
-            EPG_groups[(x)%16][(y)%16][(z+d)%16].I = 0.5
-            EPG_groups[(x+d)%16][(y+d)%16][(z)%16].I = 0.5
-            EPG_groups[(x+d)%16][(y)%16][(z+d)%16].I = 0.5
-            EPG_groups[(x)%16][(y+d)%16][(z+d)%16].I = 0.5
-            EPG_groups[(x+d)%16][(y+d)%16][(z+d)%16].I = 0.5
+            EPG_groups[(x)%16][(y)%16][(z)%16].I = strength
+            EPG_groups[(x+d)%16][(y)%16][(z)%16].I = strength
+            EPG_groups[(x)%16][(y+d)%16][(z)%16].I = strength
+            EPG_groups[(x)%16][(y)%16][(z+d)%16].I = strength
+            EPG_groups[(x+d)%16][(y+d)%16][(z)%16].I = strength
+            EPG_groups[(x+d)%16][(y)%16][(z+d)%16].I = strength
+            EPG_groups[(x)%16][(y+d)%16][(z+d)%16].I = strength
+            EPG_groups[(x+d)%16][(y+d)%16][(z+d)%16].I = strength
 
 
         def visual_cue_off():
@@ -209,8 +207,8 @@ def simulator(
             reset()
             for i in range(8):
                 for j in range(16):
-                    for k in range(1):
-                        PENx_groups[k][j][i].I = strength
+                    for k in range(16):
+                        PENx_groups[i][j][k].I = strength
 
         def left(strength):
             pbar.set_description("Left")
@@ -218,7 +216,7 @@ def simulator(
             for i in range(8, 16):
                 for j in range(16):
                     for k in range(16):
-                        PENx_groups[k][j][i].I = strength
+                        PENx_groups[i][j][k].I = strength
 
         def up(strength):
             pbar.set_description("Up")
@@ -226,7 +224,7 @@ def simulator(
             for i in range(16):
                 for j in range(8):
                     for k in range(16):
-                        PENy_groups[k][j][i].I = strength
+                        PENy_groups[i][j][k].I = strength
 
         def down(strength):
             pbar.set_description("Down")
@@ -234,7 +232,7 @@ def simulator(
             for i in range(16):
                 for j in range(8, 16):
                     for k in range(16):
-                        PENy_groups[k][j][i].I = strength
+                        PENy_groups[i][j][k].I = strength
 
         def front(strength):
             pbar.set_description("Front")
@@ -242,7 +240,7 @@ def simulator(
             for i in range(16):
                 for j in range(16):
                     for k in range(8):
-                        PENz_groups[k][j][i].I = strength
+                        PENz_groups[i][j][k].I = strength
 
         def back(strength):
             pbar.set_description("Back")
@@ -250,22 +248,49 @@ def simulator(
             for i in range(16):
                 for j in range(16):
                     for k in range(8, 16):
-                        PENz_groups[k][j][i].I = strength
+                        PENz_groups[i][j][k].I = strength
 
-        
-        
-        visual_cue_on(0, 1, 2)
-        net.run(300 * ms)
-        pbar.update(1)
+        def apply_shift(direction, strength):
+            mapping = {
+                'right': right,
+                'left': left,
+                'up': up,
+                'down': down,
+                'front': front,
+                'back': back,
+            }
+            try:
+                mapping[direction](strength)
+            except KeyError:
+                raise ValueError(f'Unknown shift direction: {direction}')
 
-        visual_cue_off()
-        net.run(300 * ms)
-        pbar.update(1)
+        if events is None:
+            events = [
+                {'type': 'visual_cue_on', 'x': 0, 'y': 1, 'z': 2, 'strength': 0.5, 'duration': 300*ms},
+                {'type': 'visual_cue_off', 'duration': 300*ms},
+                {'type': 'shift', 'direction': 'right', 'strength': 0.018, 'duration': 1000*ms},
+            ]
 
-        right(shifter_strength)
-        net.run(1000 * ms)
-        pbar.update(1)
+        for ev in events:
+            etype = ev.get('type')
+            duration = ev.get('duration', None)
 
+            if etype == 'visual_cue_on':
+                visual_cue_on(ev['x'], ev['y'], ev['z'], ev['strength'])
+            elif etype == 'visual_cue_off':
+                visual_cue_off()
+            elif etype == 'shift':
+                direction = ev['direction']
+                strength = ev['strength']
+                apply_shift(direction, strength)
+            elif etype == 'wait' or etype == 'run':
+                pass
+            else:
+                raise ValueError(f'Unknown event type: {etype}')
+
+            if duration is not None:
+                net.run(duration)
+                
         end  = time.time()
         print(f'\r{time.strftime("%H:%M:%S")} : {(end - start)//60:.0f} min {(end - start)%60:.1f} sec -> simulation end', flush=True)
 
@@ -274,7 +299,8 @@ def simulator(
     fr_peny = np.array([prm.smooth_rate(width=5*ms) for prm in PRM_PENy])
     fr_penz = np.array([prm.smooth_rate(width=5*ms) for prm in PRM_PENz])
 
-    t = np.linspace(0, len(fr[0])/(1000*defaultclock_dt), len(fr[0]))
+    # derive time vector from monitors (in ms), matching sheet_attractor.py
+    t = np.asarray(PRM_EPG[0].t/ms)
     print(fr.shape)
     time_length = fr.shape[1]
     fr = fr.reshape(16, 16, 16, time_length)

@@ -1,6 +1,6 @@
 from brian2 import *
-from RE16_4ring_v4_eqs import *
-from RE16_4ring_v3_con import build_pen_to_epg_array
+from sheet_eqs import *
+from sheet_con import build_pen_to_epg_array
 import numpy as np
 import time
 from tqdm import tqdm, trange
@@ -151,7 +151,7 @@ def simulator(
         pre2, post2, pre1, post1 = build_pen_to_epg_array()
 
         for j in range(16):
-            for k in range(1):
+            for k in range(16):
                 S_PxE_2.connect(i=pre2+j*48+k*256*3, j=post2+j*48+k*256*3)
                 S_PxE_1.connect(i=pre1+j*48+k*256*3, j=post1+j*48+k*256*3)
                 S_PyE_2.connect(i=map_index(pre2)+j*3+k*256*3, j=map_index(post2)+j*3+k*256*3)
@@ -171,7 +171,7 @@ def simulator(
 
         pbar.set_description("Collecting network")
         net = Network(collect())
-        net.add(S_EPx,S_EPy,S_EE,S_PPx,S_PPy,S_PPz,S_EI,S_IE,S_II,S_PxE_2,S_PxE_1,S_PyE_2,S_PyE_1,S_PzE_2,S_PzE_1)
+        net.add(S_EPx,S_EPy, S_EPz,S_EE,S_PPx,S_PPy,S_PPz,S_EI,S_IE,S_II,S_PxE_2,S_PxE_1,S_PyE_2,S_PyE_1,S_PzE_2,S_PzE_1)
         for monitors in [PRM_EPG, PRM_PENx, PRM_PENy, PRM_PENz]:
             net.add(*monitors)
         pbar.update(1)
@@ -254,7 +254,7 @@ def simulator(
 
         
         
-        visual_cue_on(1, 2, 3)
+        visual_cue_on(0, 1, 2)
         net.run(300 * ms)
         pbar.update(1)
 

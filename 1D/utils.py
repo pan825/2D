@@ -167,22 +167,6 @@ def eip_to_eb_fast(eip_fr: np.ndarray) -> np.ndarray:
     """
     return eip_fr@_WEIGHT_MATRIX_SYMMETRY
 
-@njit(parallel=True, fastmath=True)
-def eip_to_eb_numba(eip_fr: np.ndarray):
-    """
-    eip_fr: shape = (T, 18)
-    回傳 eb_fr: shape = (T, 16)
-    """
-    T, _ = eip_fr.shape
-    eb_fr = np.empty((T, 16), dtype=eip_fr.dtype)
-    for t in prange(T):
-        for j in range(16):
-            idxs = _eip_rg[j]
-            s = 0.0
-            for k in range(len(idxs)):
-                s += eip_fr[t, idxs[k]]
-            eb_fr[t, j] = s / len(idxs)
-    return eb_fr
 
 def gau_fit(t: np.ndarray, fr: np.ndarray, step=1):
     """

@@ -11,7 +11,6 @@ import utils
 import fit
 import visualize
 
-
 @dataclass
 class Parameters:
     """Parameters for the ring attractor network model.
@@ -25,8 +24,7 @@ class Parameters:
     w_EP: float = 0.012  # EB -> PEN 
     w_PE: float = 0.709  # PEN -> EB 
     w_PP: float = 0.01   # PEN <-> PEN 
-    sigma: float = 0.0001  # Noise level
-
+    sigma: float = 0.001  # Noise level
 
 class Simulator:
     """Implementation of a ring attractor neural network model.
@@ -67,78 +65,43 @@ class Simulator:
         self.angular_velocity: Optional[float] = None
         self.rotations_per_second: Optional[float] = None
         
-        # Simulation parameters
-        self.t_epg_open: Optional[int] = None
-        self.t_epg_close: Optional[int] = None
-        self.t_pen_open: Optional[int] = None
-        self.stimulus_strength: Optional[float] = None
-        self.stimulus_location: Optional[float] = None
-        self.shifter_strength: Optional[float] = None
-        self.half_PEN: Optional[str] = None
+        # Per-event analysis results
+        self.event_timings: Optional[List[Dict[str, float]]] = None
+        self.event_velocities: Optional[List[Dict[str, Any]]] = None
         
-    def setup(self, 
-            t_epg_open: int = 200, 
-            t_epg_close: int = 500, 
-            t_pen_open: int = 5000,
-            stimulus_strength: float = 0.05,
-            stimulus_location: float = 0.0,
-            shifter_strength: float = 0.015,
-            half_PEN: str = 'right'):
-        """Setup the network simulation with specified parameters.
+        # Events for simulation
+        self.events: Optional[List[Dict[str, Any]]] = None
         
+    def set_events(self, events: List[Dict[str, Any]]):
+        """Set the events for the network simulation.
+        Example:
+        events = [
+            {'type': 'visual_cue_on', 'location': 0, 'strength': 0.05, 'duration': 300*ms},
+            {'type': 'visual_cue_off', 'duration': 300*ms},
+            {'type': 'shift', 'direction': 'right', 'strength': 0.015, 'duration': 1000*ms},
+            {'type': 'shift', 'direction': 'left', 'strength': 0.015, 'duration': 1000*ms},
+        ]
         Args:
-            t_epg_open: Time (ms) when the stimulus starts
-            t_epg_close: Time (ms) when the stimulus ends
-            t_pen_open: Time (ms) when the PEN neurons become active
-            stimulus_strength: Strength of the external stimulus
-            stimulus_location: Angular location of stimulus (0 to π radians)
-            shifter_strength: Strength of the shifter input
-            half_PEN: Which half of PEN neurons to activate ('left' or 'right')
+            events: List of event dictionaries for event-driven simulation
         """
-        self.t_epg_open = t_epg_open
-        self.t_epg_close = t_epg_close
-        self.t_pen_open = t_pen_open
-        self.stimulus_strength = stimulus_strength
-        self.stimulus_location = stimulus_location
-        self.shifter_strength = shifter_strength
-        self.half_PEN = half_PEN
+        self.events = events
         return 
         
-    def run(self, 
-            t_epg_open: int = None, 
-            t_epg_close: int = None, 
-            t_pen_open: int = None,
-            stimulus_strength: float = None,
-            stimulus_location: float = None,
-            shifter_strength: float = None,
-            half_PEN: str = None,
-            # PEN_input_frequency: float = 1.0,
-            # PEN_input_phase: float = 0.0,
-            # PEN_input_oscillation_amplitude: float = 1
-            ):
-        # Use helper to update only the provided parameters
-        self._update_attrs(
-            t_epg_open=t_epg_open,
-            t_epg_close=t_epg_close,
-            t_pen_open=t_pen_open,
-            stimulus_strength=stimulus_strength,
-            stimulus_location=stimulus_location,
-            shifter_strength=shifter_strength,
-            half_PEN=half_PEN,
-        )
+    def run(self, events: List[Dict[str, Any]] = None):
+        """Run the simulation with events.
+        
+        Args:
+            events: Optional events list. If provided, overrides the events set in setup()
+        """
+        # Use provided events or fall back to setup events
+        simulation_events = events if events is not None else self.events
+        
+        if simulation_events is None:
+            raise ValueError("No events provided. Use setup() or pass events to run()")
         
         t, fr_epg, fr_pen, fr_r = RE16.simulator(
             **self.parameters.__dict__,
-            stimulus_strength=self.stimulus_strength,
-            stimulus_location=self.stimulus_location,
-            shifter_strength=self.shifter_strength,
-            half_PEN=self.half_PEN,
-            t_epg_open=self.t_epg_open,
-            t_epg_close=self.t_epg_close,
-            t_pen_open=self.t_pen_open,
-            # input_oscillation_amplitude=PEN_input_oscillation_amplitude,
-            # input_frequency=PEN_input_frequency,
-            # input_phase=PEN_input_phase,
+            events=simulation_events,
         )
         
         
@@ -218,15 +181,12 @@ class Simulator:
         """Calculate the angular velocity from Gaussian position data.
         
         Args:
-            time_threshold: Starting time for the fit (defaults to stimulus close time)
+            time_threshold: Starting time for the fit (defaults to None)
             time_end: Ending time for the fit (defaults to end of simulation)
             
         Returns:
             Tuple of (slope, r_squared, std_err, CV)
         """
-        if time_threshold is None and self.t_epg_close is not None:
-            time_threshold = (self.t_epg_close + self.t_epg_open)/1000
-            
         self._ensure_gaussian_fit()
             
         slope, r2 , std_err, CV = fit.fit_slope(
@@ -247,6 +207,107 @@ class Simulator:
         
         return slope, r2, std_err, CV
         
+    def calculate_event_timings(self):
+        """Calculate start and end times for each event."""
+        if self.events is None:
+            raise ValueError("No events available. Run setup() first.")
+            
+        event_timings = []
+        current_time = 0.0
+        
+        for i, event in enumerate(self.events):
+            duration = event.get('duration', 0)
+            
+            # Convert brian2 units to seconds if needed
+            if hasattr(duration, 'value'):
+                duration_sec = duration.value
+            else:
+                duration_sec = float(duration)
+                
+            start_time = current_time
+            end_time = current_time + duration_sec
+            
+            event_timings.append({
+                'event_index': i,
+                'event_type': event.get('type', 'unknown'),
+                'start_time': start_time,
+                'end_time': end_time,
+                'duration': duration_sec,
+                'event_data': event,
+                'strength': event.get('strength', None)
+            })
+            
+            current_time = end_time
+            
+        self.event_timings = event_timings
+        return event_timings
+        
+    def fit_velocity_per_event(self):
+        """Fit velocity for each individual event period."""
+        if self.event_timings is None:
+            self.calculate_event_timings()
+            
+        self._ensure_gaussian_fit()
+        
+        event_velocities = []
+        
+        for timing in self.event_timings:
+            event_index = timing['event_index']
+            event_type = timing['event_type']
+            start_time = timing['start_time']
+            end_time = timing['end_time']
+            
+            try:
+                # Fit velocity for this specific time window
+                slope, r2, std_err, CV = fit.fit_slope(
+                    self.gt, 
+                    self.gx, 
+                    start_time, 
+                    end_time
+                )
+                
+                angular_velocity = slope * 2 * np.pi / 16
+                rotations_per_second = angular_velocity / (2 * np.pi)
+                
+                event_velocity = {
+                    'event_index': event_index,
+                    'event_type': event_type,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'slope': slope,
+                    'r_squared': r2,
+                    'std_err': std_err,
+                    'coefficient_variation': CV,
+                    'angular_velocity': angular_velocity,
+                    'angular_velocity_deg': np.rad2deg(angular_velocity),
+                    'rotations_per_second': rotations_per_second,
+                    'event_data': timing['event_data'],
+                    'strength': timing['strength']
+                }
+                
+            except Exception as e:
+                # Handle cases where fitting fails (e.g., insufficient data)
+                event_velocity = {
+                    'event_index': event_index,
+                    'event_type': event_type,
+                    'start_time': start_time,
+                    'end_time': end_time,
+                    'slope': np.nan,
+                    'r_squared': np.nan,
+                    'std_err': np.nan,
+                    'coefficient_variation': np.nan,
+                    'angular_velocity': np.nan,
+                    'angular_velocity_deg': np.nan,
+                    'rotations_per_second': np.nan,
+                    'error': str(e),
+                    'event_data': timing['event_data'],
+                    'strength': timing['strength']
+                }
+                
+            event_velocities.append(event_velocity)
+            
+        self.event_velocities = event_velocities
+        # return event_velocities
 
     
     def reset(self):
@@ -263,6 +324,9 @@ class Simulator:
         self.r_squared = None
         self.std_err = None
         self.angular_velocity = None
+        self.events = None
+        self.event_timings = None
+        self.event_velocities = None
         
     def _ensure_gaussian_fit(self):
         """Ensure that Gaussian fit has been performed."""
@@ -274,25 +338,6 @@ class Simulator:
         if self.t_proc is None:
             self.process_data()
 
-    def plot(self, title=None, file_name=None, region='EB', y_label='Time (s)', 
-                      cmap='Blues', save=False, folder='figures', plot_gaussian=True, 
-                      figsize=(10, 2.5)):
-        """Visualize the neural activity as a color plot.
-        
-        Args:
-            title: Plot title
-            file_name: Filename for saving the plot
-            region: Brain region to label ('EB' or other)
-            y_label: Label for y-axis
-            cmap: Colormap for the plot
-            save: Whether to save the plot
-            folder: Folder for saving
-            plot_gaussian: Whether to plot the Gaussian fit
-            figsize: Figure size
-        """
-        self._ensure_processed_data()
-        visualize.plot_results(self.t_proc, self.fr_proc, title, file_name, region, 
-                    y_label, cmap, save, folder, plot_gaussian, figsize)
         
     def plot_raw(self, title=None, file_name=None, region='EB', y_label='Time (s)', 
                          cmap='Blues', save=False, folder='figures', plot_gaussian=True, 
@@ -340,6 +385,60 @@ class Simulator:
             plt.savefig(os.path.join(folder, file_name))
             plt.close()
             
+    def plot(self, show_events=True, show_velocity=True, figsize=(12, 6)):
+        self.fit_velocity_per_event()
+
+        fig, (ax1, ax2) = plt.subplots(
+            2, 1, figsize=figsize, height_ratios=[2, 1], sharex=True
+        )
+
+        im = ax1.pcolormesh(
+            self.t_proc, range(self.fr_proc.shape[0]), self.fr_proc,
+            cmap='Blues', shading='nearest'
+        )
+
+        try:
+            g_t, g_x, g_y, g_w = fit.gau_fit(self.t_proc, self.fr_proc)
+            ax1.plot(g_t, g_x, 'r-', linewidth=3, label='Bump position')
+            ax1.legend()
+        except:
+            pass
+
+        ax1.set_ylabel('Neuron ID')
+        ax1.set_title('Ring Attractor Activity with Event Phases')
+
+        if hasattr(self, 'gx') and hasattr(self, 'gt'):
+            ax2.plot(self.gt, self.gx * 2 * np.pi/16, 'b-', linewidth=2)
+            ax2.set_ylabel('Position (rad)')
+        ax2.set_xlabel('Time (s)')
+
+        if hasattr(self, 'gt'):
+            tmin = min(np.min(self.t_proc), np.min(self.gt))
+            tmax = max(np.max(self.t_proc), np.max(self.gt))
+        else:
+            tmin, tmax = np.min(self.t_proc), np.max(self.t_proc)
+        ax1.set_xlim(tmin, tmax)  
+
+        if show_events and hasattr(self, 'event_velocities') and self.event_velocities:
+            for ev in self.event_velocities:
+                start_time, end_time = ev['start_time'], ev['end_time']
+                for ax in (ax1, ax2):
+                    ax.axvline(start_time, color='red', linestyle='--', alpha=0.7)
+                    ax.axvline(end_time, color='red', linestyle='--', alpha=0.7)
+                if show_velocity and not np.isnan(ev['angular_velocity']):
+                    mid =  (start_time + end_time) / 2
+                    if ev['event_type'] == 'shift':
+                        txt = f"{ev['event_type']}\n{ev['angular_velocity_deg']:.1f}°/s\nStrength: {ev.get('strength', 'N/A')}"
+                    else:
+                        txt = f"{ev['event_type']}\n{ev['angular_velocity_deg']:.1f}°/s"
+                    y_top = ax1.get_ylim()[1] * 0.9
+                    ax1.annotate(txt, (mid, y_top), ha='center', va='top', fontsize=9,
+                                bbox=dict(boxstyle='round,pad=0.3', facecolor='yellow', alpha=0.7))
+
+        plt.tight_layout()
+        plt.show()
+
+            
     def xt_plot(self, v=False, a=False):
         """Plot the position (gx) over time."""
         self._ensure_gaussian_fit()
@@ -359,6 +458,46 @@ class Simulator:
         plt.grid(True, alpha=0.3)
         plt.show()
     
+    def print_event_velocities(self):
+        """Print detailed velocity analysis for each event."""
+        if self.event_velocities is None:
+            self.fit_velocity_per_event()
+            
+        print("\n" + "="*60)
+        print("PER-EVENT VELOCITY ANALYSIS")
+        print("="*60)
+        
+        for i, ev in enumerate(self.event_velocities):
+            print(f"\nEvent {ev['event_index'] + 1}: {ev['event_type']}")
+            print(f"Time: {ev['start_time']:.3f}s - {ev['end_time']:.3f}s (duration: {ev['end_time'] - ev['start_time']:.3f}s)")
+            
+            if not np.isnan(ev['angular_velocity']):
+                print(f"Angular velocity: {ev['angular_velocity']:.3f} ± {ev['std_err']*2*np.pi/16:.3f} rad/s")
+                print(f"                  {ev['angular_velocity_deg']:.3f} ± {np.rad2deg(ev['std_err']*2*np.pi/16):.3f} deg/s")
+                print(f"Rotations/sec:    {ev['rotations_per_second']:.3f} Hz")
+                
+                # Color code r_squared based on quality
+                if abs(ev['r_squared']) >= 0.95:
+                    print('\033[92m' + f"R-squared: {ev['r_squared']:.3f}" + '\033[0m')
+                elif np.isnan(ev['r_squared']):
+                    print('\033[91m' + f"R-squared: {ev['r_squared']:.3f}" + '\033[0m')
+                else: 
+                    print(f"R-squared: {ev['r_squared']:.3f}")
+            else:
+                print('\033[91m' + "Velocity fitting failed" + '\033[0m')
+                if 'error' in ev:
+                    print(f"Error: {ev['error']}")
+                    
+            # Show event parameters
+            event_data = ev['event_data']
+            if 'strength' in event_data:
+                print(f"Strength: {event_data['strength']}")
+            if 'location' in event_data:
+                print(f"Location: {event_data['location']}")
+            if 'direction' in event_data:
+                print(f"Direction: {event_data['direction']}")
+                
+        print("="*60)
             
     def summary(self):
         """Print a summary of the simulation and analysis results."""
@@ -399,23 +538,18 @@ class Simulator:
         for param, value in self.parameters.__dict__.items():
             print(f'  {param}: {value}')
             
-        print(f'Stimulus open time: {self.t_epg_open} ms')
-        print(f'Stimulus close time: {self.t_epg_close} ms')
-        print(f'PEN open time: {self.t_pen_open} ms')
-        print(f'Stimulus strength: {self.stimulus_strength}')
-        print(f'Stimulus location: {self.stimulus_location} rad')
-        print(f'Shifter strength: {self.shifter_strength}')
-        print(f'Half PEN: {self.half_PEN}')
+        if self.events is not None:
+            print(f'Events: {len(self.events)} event(s) configured')
+            for i, event in enumerate(self.events):
+                print(f'  Event {i+1}: {event}')
         print('='*40)
+        
+        # Add per-event velocity analysis
+        self.print_event_velocities()
         
     # ---------------------------------------------------------------------
     # Helper utilities (private)
     # ---------------------------------------------------------------------
-    def _update_attrs(self, **kwargs):
-        """Update instance attributes only if a new (non-None) value is given."""
-        for key, value in kwargs.items():
-            if value is not None:
-                setattr(self, key, value)
 
     def _expand_and_convert(self, fr: np.ndarray) -> Tuple[np.ndarray, np.ndarray]:
         """Insert missing neuron positions and convert to EB representation.
@@ -436,8 +570,20 @@ class Simulator:
         return conv_time, eb_fr.T
 
 if __name__ == '__main__':
+    from brian2 import ms
+    
+    # Define events
+    events = [
+        {'type': 'visual_cue_on', 'location': 0, 'strength': 0.05, 'duration': 300*ms},
+        {'type': 'visual_cue_off', 'duration': 300*ms},
+        {'type': 'shift', 'direction': 'right', 'strength': 0.015, 'duration': 1000*ms},
+        {'type': 'shift', 'direction': 'left', 'strength': 0.015, 'duration': 1000*ms},
+    ]
+    
+    # Create and run simulation
     network = Simulator()
-    network.run(stimulus_strength=0.05, stimulus_location=0.0, shifter_strength=0.015, half_PEN='right')
+    network.setup(events)
+    network.run()
     network.process_data()
     network.save(file_path='simulation_results.dat', folder='results')
     network.plot(title='Activity', file_name='activity.png', region='EB', save=True, folder='figures')
